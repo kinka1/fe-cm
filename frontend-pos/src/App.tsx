@@ -1,6 +1,5 @@
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
-import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PosPage } from './pages/PosPage';
 import { OrdersPage } from './pages/OrdersPage';
@@ -12,7 +11,11 @@ import { UserOrderPage } from './pages/UserOrderPage';
 import { Button } from './components/ui';
 import { type AppRole, getRoleHome, useAuth } from './lib/auth';
 
+const AUTH_GUARD_DISABLED = true;
+
 function ProtectedRoute() {
+  if (AUTH_GUARD_DISABLED) return <AppLayout />;
+
   const { isAuthenticated, role } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (role === 'user') return <Navigate to="/u" replace />;
@@ -20,6 +23,8 @@ function ProtectedRoute() {
 }
 
 function RoleRoute({ roles, children }: { roles: AppRole[]; children: React.ReactNode }) {
+  if (AUTH_GUARD_DISABLED) return children;
+
   const { role, canAccess } = useAuth();
   if (!canAccess(roles)) return <Navigate to={getRoleHome(role)} replace />;
   return children;
@@ -42,7 +47,7 @@ const adminOnly: AppRole[] = ['admin'];
 const adminAndKasir: AppRole[] = ['admin', 'kasir'];
 
 const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  { path: '/login', element: <Navigate to="/" replace /> },
   { path: '/u', element: <UserOrderPage /> },
   { path: '/u/:qrCode', element: <UserOrderPage /> },
   { path: '/order', element: <UserOrderPage /> },

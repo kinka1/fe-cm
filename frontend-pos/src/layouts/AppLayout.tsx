@@ -21,15 +21,18 @@ const roleLabel: Record<AppRole, string> = {
   user: 'User',
 };
 
+const AUTH_GUARD_DISABLED = true;
+
 export function AppLayout() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const visibleNavItems = navItems.filter((item) => item.roles.includes(role));
+  const activeRole: AppRole = AUTH_GUARD_DISABLED && !user ? 'admin' : role;
+  const visibleNavItems = AUTH_GUARD_DISABLED ? navItems : navItems.filter((item) => item.roles.includes(role));
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   return (
@@ -39,7 +42,7 @@ export function AppLayout() {
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#f59e0b] text-[#17212b]"><BarChart3 className="h-5 w-5" /></div>
           <div>
             <p className="font-bold leading-tight">POS Management</p>
-            <p className="text-xs text-teal-100/80">{roleLabel[role]} workspace</p>
+            <p className="text-xs text-teal-100/80">{roleLabel[activeRole]} workspace</p>
           </div>
         </div>
         <nav className="grid gap-1 p-3">
@@ -58,7 +61,7 @@ export function AppLayout() {
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-teal-100 bg-[#fffaf0]/95 px-4 shadow-sm backdrop-blur lg:px-6">
           <button className="rounded-md p-2 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink">{user?.name ?? 'Operator'} <span className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-xs text-teal-800">{roleLabel[role]}</span></p>
+            <p className="truncate text-sm font-semibold text-ink">{user?.name ?? 'Operator'} <span className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-xs text-teal-800">{roleLabel[activeRole]}</span></p>
             <p className="truncate text-xs text-muted">Employee ID: {user?.employee_id ?? 'belum tersedia'}</p>
           </div>
           <Button variant="secondary" onClick={handleLogout}><LogOut className="h-4 w-4" />Logout</Button>
