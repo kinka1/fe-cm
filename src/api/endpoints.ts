@@ -1,7 +1,18 @@
-import type { CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, QrOrderPayload, StockReportRow, StockTransaction, TableMenuResponse, User } from '../types/api';
+import type { ApprovalPayload, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data;
+
+/**
+ * Backend tidak konsisten: sebagian endpoint mengembalikan array polos
+ * (mis. /categories), sebagian lagi paginator Laravel (mis. /products).
+ * Helper ini menormalkan keduanya jadi array.
+ */
+const toList = <T>(payload: T[] | LaravelPage<T> | null | undefined): T[] => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray((payload as LaravelPage<T>).data)) return (payload as LaravelPage<T>).data;
+  return [];
+};
 
 export const authApi = {
   login: async (payload: { username: string; password: string }) => unwrap<{ user: User; token: string }>(await api.post('/auth/login', payload)),
@@ -41,4 +52,48 @@ export const employeesApi = {
   create: async (payload: Partial<Employee> & { password?: string }) => unwrap<Employee>(await api.post('/employees', payload)),
   update: async (id: number, payload: Partial<Employee> & { password?: string }) => unwrap<Employee>(await api.put(`/employees/${id}`, payload)),
   delete: async (id: number) => unwrap<null>(await api.delete(`/employees/${id}`)),
+};
+
+export const suppliersApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<Supplier[] | LaravelPage<Supplier>>(await api.get('/suppliers', { params }))),
+  create: async (payload: Partial<Supplier>) => unwrap<Supplier>(await api.post('/suppliers', payload)),
+  update: async (id: number, payload: Partial<Supplier>) => unwrap<Supplier>(await api.put(`/suppliers/${id}`, payload)),
+  delete: async (id: number) => unwrap<null>(await api.delete(`/suppliers/${id}`)),
+};
+
+export const purchaseOrdersApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<PurchaseOrder[] | LaravelPage<PurchaseOrder>>(await api.get('/purchase-orders', { params }))),
+  show: async (id: number) => unwrap<PurchaseOrder>(await api.get(`/purchase-orders/${id}`)),
+  create: async (payload: PurchaseOrderPayload) => unwrap<PurchaseOrder>(await api.post('/purchase-orders', payload)),
+  update: async (id: number, payload: PurchaseOrderUpdatePayload) => unwrap<PurchaseOrder>(await api.put(`/purchase-orders/${id}`, payload)),
+  // receive & cancel tidak menerima body sama sekali di backend.
+  receive: async (id: number) => unwrap<PurchaseOrder>(await api.post(`/purchase-orders/${id}/receive`)),
+  cancel: async (id: number) => unwrap<PurchaseOrder>(await api.post(`/purchase-orders/${id}/cancel`)),
+};
+
+export const stockAdjustmentsApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<StockAdjustment[] | LaravelPage<StockAdjustment>>(await api.get('/stock-adjustments', { params }))),
+  create: async (payload: StockAdjustmentPayload) => unwrap<StockAdjustment>(await api.post('/stock-adjustments', payload)),
+  approve: async (id: number, payload?: ApprovalPayload) => unwrap<StockAdjustment>(await api.post(`/stock-adjustments/${id}/approve`, payload ?? {})),
+  reject: async (id: number, payload?: ApprovalPayload) => unwrap<StockAdjustment>(await api.post(`/stock-adjustments/${id}/reject`, payload ?? {})),
+};
+
+export const stockOpnamesApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<StockOpname[] | LaravelPage<StockOpname>>(await api.get('/stock-opnames', { params }))),
+  show: async (id: number) => unwrap<StockOpname>(await api.get(`/stock-opnames/${id}`)),
+  create: async (payload: { opname_date: string; employee_id?: number | null; notes?: string | null }) => unwrap<StockOpname>(await api.post('/stock-opnames', payload)),
+  addItem: async (id: number, payload: { product_id: number; physical_stock: number; notes?: string | null }) => unwrap<StockOpnameItem>(await api.post(`/stock-opnames/${id}/items`, payload)),
+  submit: async (id: number) => unwrap<StockOpname>(await api.post(`/stock-opnames/${id}/submit`)),
+  approve: async (id: number, payload?: { approved_by?: number | null }) => unwrap<StockOpname>(await api.post(`/stock-opnames/${id}/approve`, payload ?? {})),
+};
+
+export const productBatchesApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<ProductBatch[] | LaravelPage<ProductBatch>>(await api.get('/product-batches', { params }))),
+  expiringSoon: async (params?: Record<string, unknown>) => toList(unwrap<ProductBatch[] | LaravelPage<ProductBatch>>(await api.get('/product-batches/expiring-soon', { params }))),
+  create: async (payload: Partial<ProductBatch>) => unwrap<ProductBatch>(await api.post('/product-batches', payload)),
+};
+
+export const stockAlertsApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<StockAlertRow[] | LaravelPage<StockAlertRow>>(await api.get('/stock-alerts', { params }))),
+  summary: async () => unwrap<Record<string, unknown>>(await api.get('/stock-alerts/summary')),
 };

@@ -96,7 +96,7 @@ Fitur yang tersedia:
 - Filter order berdasarkan payment status.
 - Melihat detail order.
 - Menampilkan item dalam order.
-- Menampilkan quantity, harga satuan, subtotal, dan catatan item.
+-  harga satuan, subtotal, dan catatan item.
 - Update status order.
 
 Status order yang bisa dipilih:

@@ -167,3 +167,147 @@ export interface QrOrderPayload {
   discount?: number;
   items: Array<{ product_id: number; quantity: number; notes?: string | null }>;
 }
+
+export type SupplierStatus = 'active' | 'inactive';
+
+export interface Supplier {
+  id: number;
+  supplier_name: string;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  status: SupplierStatus;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled';
+
+export interface PurchaseOrderItem {
+  id: number;
+  purchase_order_id: number;
+  product_id: number;
+  product?: Product;
+  quantity: number | string;
+  unit_cost: number | string;
+  subtotal: number | string;
+  notes?: string | null;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  po_number: string;
+  supplier_id?: number | null;
+  supplier?: Supplier | null;
+  employee_id?: number | null;
+  order_date: string;
+  received_date?: string | null;
+  status: PurchaseOrderStatus;
+  total_amount: number | string;
+  notes?: string | null;
+  items?: PurchaseOrderItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** POST /purchase-orders. Backend generate po_number sendiri dan selalu set status 'draft'. */
+export interface PurchaseOrderPayload {
+  supplier_id?: number | null;
+  employee_id?: number | null;
+  order_date: string;
+  notes?: string | null;
+  items: Array<{ product_id: number; quantity: number; unit_cost?: number | null; notes?: string | null }>;
+}
+
+/** PUT /purchase-orders/:id. Backend tidak menerima items di sini, dan status 'received' ditolak. */
+export interface PurchaseOrderUpdatePayload {
+  supplier_id?: number | null;
+  employee_id?: number | null;
+  order_date: string;
+  status: Exclude<PurchaseOrderStatus, 'received'>;
+  notes?: string | null;
+}
+
+/** Body approve/reject stock adjustment. */
+export interface ApprovalPayload {
+  approved_by?: number | null;
+  approval_notes?: string | null;
+}
+
+export type StockAdjustmentType = 'increase' | 'decrease';
+export type StockAdjustmentStatus = 'pending' | 'approved' | 'rejected';
+
+export interface StockAdjustment {
+  id: number;
+  product_id: number;
+  product?: Product;
+  quantity: number | string;
+  adjustment_type: StockAdjustmentType;
+  requested_by?: number | null;
+  approved_by?: number | null;
+  status: StockAdjustmentStatus;
+  reason?: string | null;
+  approval_notes?: string | null;
+  approved_at?: string | null;
+  stock_transaction_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StockAdjustmentPayload {
+  product_id: number;
+  quantity: number;
+  adjustment_type: StockAdjustmentType;
+  requested_by?: number | null;
+  reason?: string | null;
+}
+
+export type StockOpnameStatus = 'draft' | 'submitted' | 'approved' | 'cancelled';
+
+export interface StockOpnameItem {
+  id: number;
+  stock_opname_id: number;
+  product_id: number;
+  product?: Product;
+  system_stock: number | string;
+  physical_stock: number | string;
+  difference: number | string;
+  notes?: string | null;
+}
+
+export interface StockOpname {
+  id: number;
+  opname_number: string;
+  employee_id?: number | null;
+  opname_date: string;
+  status: StockOpnameStatus;
+  notes?: string | null;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  approved_by?: number | null;
+  items?: StockOpnameItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProductBatch {
+  id: number;
+  product_id: number;
+  product?: Product;
+  batch_number: string;
+  expired_date?: string | null;
+  quantity: number | string;
+  received_date?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StockAlertRow {
+  product_id: number;
+  product_name?: string;
+  current_stock: number | string;
+  minimum_stock: number | string;
+  [key: string]: unknown;
+}

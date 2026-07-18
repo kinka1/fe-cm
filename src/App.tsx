@@ -7,6 +7,11 @@ import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { StockPage } from './pages/StockPage';
 import { EmployeesPage } from './pages/EmployeesPage';
+import { SuppliersPage } from './pages/SuppliersPage';
+import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage';
+import { StockAdjustmentsPage } from './pages/StockAdjustmentsPage';
+import { StockOpnamesPage } from './pages/StockOpnamesPage';
+import { ProductBatchesPage } from './pages/ProductBatchesPage';
 import { UserOrderPage } from './pages/UserOrderPage';
 import { Button } from './components/ui';
 import { type AppRole, getRoleHome, useAuth } from './lib/auth';
@@ -64,6 +69,11 @@ const router = createBrowserRouter([
       { path: 'categories', element: <RoleRoute roles={adminOnly}><CategoriesPage /></RoleRoute> },
       { path: 'stock', element: <RoleRoute roles={adminOnly}><StockPage /></RoleRoute> },
       { path: 'employees', element: <RoleRoute roles={adminOnly}><EmployeesPage /></RoleRoute> },
+      { path: 'suppliers', element: <RoleRoute roles={adminOnly}><SuppliersPage /></RoleRoute> },
+      { path: 'purchase-orders', element: <RoleRoute roles={adminOnly}><PurchaseOrdersPage /></RoleRoute> },
+      { path: 'stock-adjustments', element: <RoleRoute roles={adminOnly}><StockAdjustmentsPage /></RoleRoute> },
+      { path: 'stock-opnames', element: <RoleRoute roles={adminOnly}><StockOpnamesPage /></RoleRoute> },
+      { path: 'product-batches', element: <RoleRoute roles={adminOnly}><ProductBatchesPage /></RoleRoute> },
     ],
   },
 ]);
