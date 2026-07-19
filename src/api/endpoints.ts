@@ -1,16 +1,25 @@
 import type { ApprovalPayload, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User } from '../types/api';
 import { api } from './client';
 
-const unwrap = <T>(response: { data: { data: T } }) => response.data.data;
+const unwrap = <T>(response: { data: { data?: T } | T }) => {
+  const payload = response.data;
+  if (payload && typeof payload === 'object' && 'data' in payload) return payload.data as T;
+  return payload as T;
+};
 
 /**
  * Backend tidak konsisten: sebagian endpoint mengembalikan array polos
  * (mis. /categories), sebagian lagi paginator Laravel (mis. /products).
  * Helper ini menormalkan keduanya jadi array.
  */
-const toList = <T>(payload: T[] | LaravelPage<T> | null | undefined): T[] => {
+const toList = <T>(payload: T[] | LaravelPage<T> | { data?: T[] | LaravelPage<T> } | null | undefined): T[] => {
   if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray((payload as LaravelPage<T>).data)) return (payload as LaravelPage<T>).data;
+  if (!payload) return [];
+
+  const nested = (payload as { data?: T[] | LaravelPage<T> }).data;
+  if (Array.isArray(nested)) return nested;
+  if (nested && Array.isArray((nested as LaravelPage<T>).data)) return (nested as LaravelPage<T>).data;
+
   return [];
 };
 
@@ -21,7 +30,7 @@ export const authApi = {
 };
 
 export const catalogApi = {
-  categories: async () => unwrap<Category[]>(await api.get('/categories')),
+  categories: async () => toList(unwrap<Category[] | LaravelPage<Category>>(await api.get('/categories'))),
   createCategory: async (payload: Partial<Category>) => unwrap<Category>(await api.post('/categories', payload)),
   updateCategory: async (id: number, payload: Partial<Category>) => unwrap<Category>(await api.put(`/categories/${id}`, payload)),
   deleteCategory: async (id: number) => unwrap<null>(await api.delete(`/categories/${id}`)),
@@ -44,7 +53,7 @@ export const posApi = {
 export const stockApi = {
   transactions: async (params?: Record<string, unknown>) => unwrap<LaravelPage<StockTransaction>>(await api.get('/stock-transactions', { params })),
   createTransaction: async (payload: Partial<StockTransaction>) => unwrap<StockTransaction>(await api.post('/stock-transactions', payload)),
-  report: async () => unwrap<StockReportRow[]>(await api.get('/stock-report')),
+  report: async () => toList(unwrap<StockReportRow[] | LaravelPage<StockReportRow>>(await api.get('/stock-report'))),
 };
 
 export const employeesApi = {
