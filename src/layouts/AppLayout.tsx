@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { BarChart3, Boxes, ClipboardList, ClipboardCheck, FolderTree, Layers, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, SlidersHorizontal, Truck, Users } from 'lucide-react';
+import { AlertTriangle, BarChart3, Boxes, Calendar, ChefHat, ClipboardList, ClipboardCheck, FolderTree, Layers, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, SlidersHorizontal, Truck, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { type AppRole, useAuth } from '../lib/auth';
@@ -18,6 +18,9 @@ const navItems: Array<{ to: string; label: string; icon: typeof LayoutDashboard;
   { to: '/stock-adjustments', label: 'Stock Adjustments', icon: SlidersHorizontal, roles: ['admin'] },
   { to: '/stock-opnames', label: 'Stock Opname', icon: ClipboardCheck, roles: ['admin'] },
   { to: '/product-batches', label: 'Product Batches', icon: Layers, roles: ['admin'] },
+  { to: '/recipes', label: 'Recipes', icon: ChefHat, roles: ['admin'] },
+  { to: '/stock-alerts', label: 'Stock Alerts', icon: AlertTriangle, roles: ['admin'] },
+  { to: '/attendance', label: 'Attendance', icon: Calendar, roles: ['admin', 'kasir'] },
 ];
 
 const roleLabel: Record<AppRole, string> = {

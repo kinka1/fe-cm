@@ -304,6 +304,39 @@ export interface ProductBatch {
   updated_at?: string;
 }
 
+export interface Recipe {
+  id: number;
+  product_id: number;
+  product?: Product;
+  ingredient_id: number;
+  ingredient?: Product;
+  quantity_needed: number | string;
+  unit: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RecipePayload {
+  product_id: number;
+  ingredient_id: number;
+  quantity_needed: number;
+  unit: string;
+}
+
+export interface AssetsSummary {
+  active_products: number;
+  low_stock_items: number;
+  stock_value: number | string;
+  today_transactions: number;
+}
+
+export interface StockMovementSummaryRow {
+  product_id: number;
+  transaction_type: 'in' | 'out' | 'adjustment';
+  total_quantity: number | string;
+  product?: Product;
+}
+
 export interface StockAlertRow {
   product_id: number;
   product_name?: string;
@@ -311,3 +344,36 @@ export interface StockAlertRow {
   minimum_stock: number | string;
   [key: string]: unknown;
 }
+
+export interface StockCardTransaction {
+  id: number;
+  transaction_type: 'in' | 'out' | 'adjustment';
+  quantity: number | string;
+  reference_type: 'purchase' | 'sale' | 'adjustment';
+  reference_id?: number | null;
+  running_balance: number | string;
+  transaction_date: string;
+  notes?: string | null;
+}
+
+export interface StockCardResponse {
+  product: Product;
+  transactions: StockCardTransaction[];
+}
+
+export interface Attendance {
+  id: number;
+  employee_id: number;
+  employee?: Employee;
+  date: string;
+  clock_in?: string | null;
+  clock_out?: string | null;
+  photo_url?: string | null;
+  status: 'hadir' | 'izin' | 'sakit' | 'alpha';
+  location_coordinates?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+

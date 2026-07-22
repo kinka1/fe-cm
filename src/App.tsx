@@ -12,6 +12,9 @@ import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage';
 import { StockAdjustmentsPage } from './pages/StockAdjustmentsPage';
 import { StockOpnamesPage } from './pages/StockOpnamesPage';
 import { ProductBatchesPage } from './pages/ProductBatchesPage';
+import { RecipesPage } from './pages/RecipesPage';
+import { StockAlertsPage } from './pages/StockAlertsPage';
+import { AttendancePage } from './pages/AttendancePage';
 import { UserOrderPage } from './pages/UserOrderPage';
 import { Button } from './components/ui';
 import { type AppRole, getRoleHome, useAuth } from './lib/auth';
@@ -74,6 +77,9 @@ const router = createBrowserRouter([
       { path: 'stock-adjustments', element: <RoleRoute roles={adminOnly}><StockAdjustmentsPage /></RoleRoute> },
       { path: 'stock-opnames', element: <RoleRoute roles={adminOnly}><StockOpnamesPage /></RoleRoute> },
       { path: 'product-batches', element: <RoleRoute roles={adminOnly}><ProductBatchesPage /></RoleRoute> },
+      { path: 'recipes', element: <RoleRoute roles={adminOnly}><RecipesPage /></RoleRoute> },
+      { path: 'stock-alerts', element: <RoleRoute roles={adminOnly}><StockAlertsPage /></RoleRoute> },
+      { path: 'attendance', element: <RoleRoute roles={adminAndKasir}><AttendancePage /></RoleRoute> },
     ],
   },
 ]);

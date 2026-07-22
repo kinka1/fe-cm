@@ -1,4 +1,4 @@
-import type { ApprovalPayload, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -38,6 +38,9 @@ export const catalogApi = {
   createProduct: async (payload: Partial<Product>) => unwrap<Product>(await api.post('/products', payload)),
   updateProduct: async (id: number, payload: Partial<Product>) => unwrap<Product>(await api.put(`/products/${id}`, payload)),
   deleteProduct: async (id: number) => unwrap<null>(await api.delete(`/products/${id}`)),
+  deletedProducts: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Product>>(await api.get('/products/deleted', { params })),
+  restoreProduct: async (id: number) => unwrap<Product>(await api.post(`/products/${id}/restore`)),
+  forceDeleteProduct: async (id: number) => unwrap<null>(await api.delete(`/products/${id}/force`)),
 };
 
 export const posApi = {
@@ -53,7 +56,12 @@ export const posApi = {
 export const stockApi = {
   transactions: async (params?: Record<string, unknown>) => unwrap<LaravelPage<StockTransaction>>(await api.get('/stock-transactions', { params })),
   createTransaction: async (payload: Partial<StockTransaction>) => unwrap<StockTransaction>(await api.post('/stock-transactions', payload)),
-  report: async () => toList(unwrap<StockReportRow[] | LaravelPage<StockReportRow>>(await api.get('/stock-report'))),
+  report: async (params?: Record<string, unknown>) => toList(unwrap<StockReportRow[] | LaravelPage<StockReportRow>>(await api.get('/stock-report', { params }))),
+  card: async (productId: number, params?: Record<string, unknown>) => unwrap<StockCardResponse>(await api.get(`/products/${productId}/stock-card`, { params })),
+  exportReport: async (params?: Record<string, unknown>) => {
+    const response = await api.get('/stock-report/export', { params, responseType: 'blob' });
+    return response.data;
+  },
 };
 
 export const employeesApi = {
@@ -102,7 +110,31 @@ export const productBatchesApi = {
   create: async (payload: Partial<ProductBatch>) => unwrap<ProductBatch>(await api.post('/product-batches', payload)),
 };
 
+export const recipesApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<Recipe[] | LaravelPage<Recipe>>(await api.get('/recipes', { params }))),
+  show: async (id: number) => unwrap<Recipe>(await api.get(`/recipes/${id}`)),
+  create: async (payload: RecipePayload) => unwrap<Recipe>(await api.post('/recipes', payload)),
+  update: async (id: number, payload: RecipePayload) => unwrap<Recipe>(await api.put(`/recipes/${id}`, payload)),
+  delete: async (id: number) => unwrap<null>(await api.delete(`/recipes/${id}`)),
+  byProduct: async (productId: number) => toList(unwrap<Recipe[] | LaravelPage<Recipe>>(await api.get(`/products/${productId}/recipes`))),
+};
+
 export const stockAlertsApi = {
   list: async (params?: Record<string, unknown>) => toList(unwrap<StockAlertRow[] | LaravelPage<StockAlertRow>>(await api.get('/stock-alerts', { params }))),
-  summary: async () => unwrap<Record<string, unknown>>(await api.get('/stock-alerts/summary')),
+  summary: async () => unwrap<{ low_stock_count: number; out_of_stock_count: number }>(await api.get('/stock-alerts/summary')),
 };
+
+export const assetsApi = {
+  summary: async () => unwrap<AssetsSummary>(await api.get('/assets/summary')),
+  lowStockSummary: async () => toList(unwrap<StockAlertRow[] | LaravelPage<StockAlertRow>>(await api.get('/assets/low-stock-summary'))),
+  stockMovementSummary: async () => toList(unwrap<Array<{ product_id: number; transaction_type: string; total_quantity: number | string }> | LaravelPage<{ product_id: number; transaction_type: string; total_quantity: number | string }>>(await api.get('/assets/stock-movement-summary'))),
+};
+
+export const attendanceApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<Attendance[] | LaravelPage<Attendance>>(await api.get('/attendances', { params }))),
+  checkIn: async (payload: FormData) => unwrap<Attendance>(await api.post('/attendances/check-in', payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })),
+  checkOut: async (payload: { employee_id: number; notes?: string | null }) => unwrap<Attendance>(await api.post('/attendances/check-out', payload)),
+};
+
