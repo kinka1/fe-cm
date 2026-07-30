@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, Search, Sparkles, Trash2, X, CreditCard, CheckCircle2, Coffee, MessageSquare, ArrowLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { catalogApi, posApi } from '../api/endpoints';
+import { catalogApi, posApi, storesApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
 import { Button } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
@@ -35,6 +35,7 @@ export function UserOrderPage() {
   const [manualQrCode, setManualQrCode] = useState('');
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [selectedStoreId, setSelectedStoreId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderType, setOrderType] = useState<'dine-in' | 'pick-up'>('dine-in');
@@ -54,15 +55,16 @@ export function UserOrderPage() {
   const submitQrCode = urlQrCode || manualQrCode.trim();
 
   const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const stores = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.list() });
   const tableMenu = useQuery({
-    queryKey: ['user-table-menu', urlQrCode, search, categoryId],
+    queryKey: ['user-table-menu', urlQrCode, search, categoryId, selectedStoreId],
     enabled: Boolean(urlQrCode),
-    queryFn: () => posApi.tableMenu(urlQrCode, { search: search || undefined, category_id: categoryId || undefined, per_page: 100 }),
+    queryFn: () => posApi.tableMenu(urlQrCode, { search: search || undefined, category_id: categoryId || undefined, store_id: selectedStoreId || undefined, per_page: 100 }),
   });
   const publicMenu = useQuery({
-    queryKey: ['user-menu', search, categoryId],
+    queryKey: ['user-menu', search, categoryId, selectedStoreId],
     enabled: !urlQrCode,
-    queryFn: () => posApi.menu({ search: search || undefined, category_id: categoryId || undefined, per_page: 100 }),
+    queryFn: () => posApi.menu({ search: search || undefined, category_id: categoryId || undefined, store_id: selectedStoreId || undefined, per_page: 100 }),
   });
 
   const menuRows = urlQrCode ? tableMenu.data?.menu.data ?? [] : publicMenu.data?.data ?? [];
@@ -204,7 +206,7 @@ export function UserOrderPage() {
                   <Coffee className="h-4.5 w-4.5" />
                 </div>
                 <div>
-                  <h1 className="text-sm font-black tracking-tight text-[#4A2C2A] uppercase">Kinka Coffee</h1>
+                  <h1 className="text-sm font-black tracking-tight text-[#4A2C2A] uppercase">Calon Mantoe</h1>
                   <p className="text-[8px] font-bold text-[#C8A27B] uppercase tracking-wider">Premium Experience</p>
                 </div>
               </div>
@@ -264,19 +266,48 @@ export function UserOrderPage() {
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="relative rounded-xl bg-[#FAF5F0] border border-[#EADAC9] px-3 py-2 flex items-center shadow-sm">
-                <Search className="h-4.5 w-4.5 text-[#8A6F6A]" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cari kopi, latte, teh, roti..."
-                  className="w-full bg-transparent border-0 pl-2 text-xs text-[#2E1D19] placeholder:text-[#8A6F6A] focus:outline-none focus:ring-0 p-0"
-                />
-              </div>
+               {/* Search Bar */}
+               <div className="relative rounded-xl bg-[#FAF5F0] border border-[#EADAC9] px-3 py-2 flex items-center shadow-sm">
+                 <Search className="h-4.5 w-4.5 text-[#8A6F6A]" />
+                 <input
+                   type="text"
+                   value={search}
+                   onChange={(e) => setSearch(e.target.value)}
+                   placeholder="Cari kopi, latte, teh, roti..."
+                   className="w-full bg-transparent border-0 pl-2 text-xs text-[#2E1D19] placeholder:text-[#8A6F6A] focus:outline-none focus:ring-0 p-0"
+                 />
+               </div>
 
-              {/* Category selector pills scrollable */}
+               {/* Store selector pills scrollable */}
+               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                 <button
+                   onClick={() => setSelectedStoreId('')}
+                   className={clsx(
+                     'shrink-0 rounded-full px-4 py-1.5 text-[10px] font-black transition border',
+                     !selectedStoreId 
+                       ? 'bg-[#4A2C2A] border-[#4A2C2A] text-white' 
+                       : 'bg-white border-[#FAF0E6] text-[#7D645E]'
+                   )}
+                 >
+                   Semua Cabang
+                 </button>
+                 {stores.data?.map((store) => (
+                   <button
+                     key={store.id}
+                     onClick={() => setSelectedStoreId(String(store.id))}
+                     className={clsx(
+                       'shrink-0 rounded-full px-4 py-1.5 text-[10px] font-black transition border',
+                       selectedStoreId === String(store.id)
+                         ? 'bg-[#4A2C2A] border-[#4A2C2A] text-white'
+                         : 'bg-white border-[#FAF0E6] text-[#7D645E]'
+                     )}
+                   >
+                     {store.store_name}
+                   </button>
+                 ))}
+               </div>
+
+               {/* Category selector pills scrollable */}
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   onClick={() => setCategoryId('')}
@@ -818,7 +849,7 @@ export function UserOrderPage() {
                   </div>
 
                   <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-150 inline-block text-[10px] font-semibold text-emerald-800">
-                    ⚡ Memulai Pemrosesan Bar Kinka Coffee
+                    ⚡ Memulai Pemrosesan Bar Calon Mantoe
                   </div>
                   
                   <Button

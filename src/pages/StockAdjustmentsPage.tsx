@@ -68,7 +68,7 @@ export function StockAdjustmentsPage() {
   };
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

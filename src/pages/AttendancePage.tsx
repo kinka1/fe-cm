@@ -199,10 +199,10 @@ export function AttendancePage() {
   };
 
   return (
-    <section className={`grid gap-6 ${role === 'admin' ? 'grid-cols-1' : 'xl:grid-cols-[400px_1fr]'}`}>
+    <section className={`grid gap-5 ${role === 'admin' ? 'grid-cols-1' : 'xl:grid-cols-[360px_1fr]'}`}>
       {/* Attendance Form (Only visible to non-admin / cashier / employees) */}
       {role !== 'admin' && (
-        <aside className="rounded-md border border-line bg-white p-5 shadow-sm h-fit">
+        <aside className="rounded-md border border-line bg-white p-4 shadow-sm h-fit">
           <h2 className="text-xl font-bold text-ink">Absensi Karyawan</h2>
           <p className="text-xs text-muted mb-4">Lakukan Check-In dan Check-Out kehadiran Anda hari ini.</p>
 
@@ -355,7 +355,7 @@ export function AttendancePage() {
       )}
 
       {/* Attendance Log Table */}
-      <div className="rounded-md border border-line bg-white p-5 shadow-sm min-w-0">
+      <div className="rounded-md border border-line bg-white p-4 shadow-sm min-w-0">
         <h2 className="text-xl font-bold text-ink">
           {role === 'admin' ? 'Monitoring Absensi Karyawan (Admin)' : 'Riwayat Absensi'}
         </h2>

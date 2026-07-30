@@ -26,7 +26,7 @@ export function StockOpnamesPage() {
   const [item, setItem] = useState({ product_id: '', physical_stock: '', notes: '' });
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, storeId } = useAuth();
 
   const opnames = useQuery({
     queryKey: ['stock-opnames', statusFilter],
@@ -52,11 +52,15 @@ export function StockOpnamesPage() {
   };
 
   const create = useMutation({
-    mutationFn: () => stockOpnamesApi.create({
-      opname_date: header.opname_date,
-      employee_id: user?.employee_id ?? null,
-      notes: header.notes || null,
-    }),
+    mutationFn: () => {
+      if (!storeId) throw new Error('store_id tidak tersedia dari user login. Backend mewajibkan store_id untuk opname.');
+      return stockOpnamesApi.create({
+        store_id: storeId,
+        opname_date: header.opname_date,
+        employee_id: user?.employee_id ?? null,
+        notes: header.notes || null,
+      });
+    },
     onSuccess: (opname) => {
       toast.success(`Opname ${opname.opname_number} dibuat`);
       setHeader({ opname_date: today(), notes: '' });
@@ -102,7 +106,7 @@ export function StockOpnamesPage() {
   const isDraft = selected?.status === 'draft';
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1fr_400px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

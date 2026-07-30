@@ -1,4 +1,4 @@
-import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -26,6 +26,8 @@ const toList = <T>(payload: T[] | LaravelPage<T> | { data?: T[] | LaravelPage<T>
 export const authApi = {
   login: async (payload: { username: string; password: string }) => unwrap<{ user: User; token: string }>(await api.post('/auth/login', payload)),
   me: async () => unwrap<User>(await api.get('/me')),
+  stores: async () => toList(unwrap<Store[] | LaravelPage<Store>>(await api.get('/me/stores'))),
+  updateCurrentStore: async (store_id: number) => unwrap<User>(await api.post('/me/current-store', { store_id })),
   logout: async () => unwrap<null>(await api.post('/auth/logout')),
 };
 
@@ -66,9 +68,17 @@ export const stockApi = {
 
 export const employeesApi = {
   list: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Employee>>(await api.get('/employees', { params })),
-  create: async (payload: Partial<Employee> & { password?: string }) => unwrap<Employee>(await api.post('/employees', payload)),
-  update: async (id: number, payload: Partial<Employee> & { password?: string }) => unwrap<Employee>(await api.put(`/employees/${id}`, payload)),
+  // Backend mewajibkan multipart (ktp & kk berupa image) untuk create.
+  // Content-Type sengaja TIDAK diset manual: axios mengisi 'multipart/form-data; boundary=...'
+  // otomatis dari FormData. Menyetelnya manual menghapus boundary dan membuat parsing backend gagal.
+  create: async (payload: FormData) => unwrap<Employee>(await api.post('/employees', payload)),
+  // Laravel tidak mem-parse multipart pada PUT; pakai POST + _method=PUT (payload sudah menyertakan _method).
+  update: async (id: number, payload: FormData) => unwrap<Employee>(await api.post(`/employees/${id}`, payload)),
   delete: async (id: number) => unwrap<null>(await api.delete(`/employees/${id}`)),
+};
+
+export const rolesApi = {
+  list: async () => toList(unwrap<Role[] | LaravelPage<Role>>(await api.get('/roles'))),
 };
 
 export const suppliersApi = {
@@ -98,7 +108,7 @@ export const stockAdjustmentsApi = {
 export const stockOpnamesApi = {
   list: async (params?: Record<string, unknown>) => toList(unwrap<StockOpname[] | LaravelPage<StockOpname>>(await api.get('/stock-opnames', { params }))),
   show: async (id: number) => unwrap<StockOpname>(await api.get(`/stock-opnames/${id}`)),
-  create: async (payload: { opname_date: string; employee_id?: number | null; notes?: string | null }) => unwrap<StockOpname>(await api.post('/stock-opnames', payload)),
+  create: async (payload: { store_id: number; opname_date: string; employee_id?: number | null; notes?: string | null }) => unwrap<StockOpname>(await api.post('/stock-opnames', payload)),
   addItem: async (id: number, payload: { product_id: number; physical_stock: number; notes?: string | null }) => unwrap<StockOpnameItem>(await api.post(`/stock-opnames/${id}/items`, payload)),
   submit: async (id: number) => unwrap<StockOpname>(await api.post(`/stock-opnames/${id}/submit`)),
   approve: async (id: number, payload?: { approved_by?: number | null }) => unwrap<StockOpname>(await api.post(`/stock-opnames/${id}/approve`, payload ?? {})),
@@ -130,11 +140,41 @@ export const assetsApi = {
   stockMovementSummary: async () => toList(unwrap<Array<{ product_id: number; transaction_type: string; total_quantity: number | string }> | LaravelPage<{ product_id: number; transaction_type: string; total_quantity: number | string }>>(await api.get('/assets/stock-movement-summary'))),
 };
 
+export const storesApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<Store[] | LaravelPage<Store>>(await api.get('/stores', { params }))),
+  show: async (id: number) => unwrap<Store>(await api.get(`/stores/${id}`)),
+  create: async (payload: Partial<Store>) => unwrap<Store>(await api.post('/stores', payload)),
+  update: async (id: number, payload: Partial<Store>) => unwrap<Store>(await api.put(`/stores/${id}`, payload)),
+  delete: async (id: number) => unwrap<null>(await api.delete(`/stores/${id}`)),
+};
+
+export const tablesApi = {
+  list: async (params?: Record<string, unknown>) => toList(unwrap<DiningTable[] | LaravelPage<DiningTable>>(await api.get('/tables', { params }))),
+  show: async (id: number) => unwrap<DiningTable>(await api.get(`/tables/${id}`)),
+  create: async (payload: Partial<DiningTable>) => unwrap<DiningTable>(await api.post('/tables', payload)),
+  update: async (id: number, payload: Partial<DiningTable>) => unwrap<DiningTable>(await api.put(`/tables/${id}`, payload)),
+  delete: async (id: number) => unwrap<null>(await api.delete(`/tables/${id}`)),
+  updateStatus: async (id: number, status: TableStatus) => unwrap<DiningTable>(await api.patch(`/tables/${id}/status`, { status })),
+};
+
+export const cashierSessionsApi = {
+  list: async (params?: Record<string, unknown>) => unwrap<LaravelPage<CashierSession>>(await api.get('/pos/cashier-sessions', { params })),
+  current: async (params?: Record<string, unknown>) => unwrap<CashierSession | null>(await api.get('/pos/cashier-sessions/current', { params })),
+  show: async (id: number) => unwrap<CashierSession>(await api.get(`/pos/cashier-sessions/${id}`)),
+  open: async (payload: { store_id: number; opening_cash: number; opening_notes?: string | null }) => unwrap<CashierSession>(await api.post('/pos/cashier-sessions/open', payload)),
+  close: async (id: number, payload: { closing_cash: number; closing_notes?: string | null }) => unwrap<CashierSession>(await api.post(`/pos/cashier-sessions/${id}/close`, payload)),
+  addCashMovement: async (id: number, payload: { type: CashMovementType; amount: number; category?: string | null; description?: string | null }) => unwrap<CashierCashMovement>(await api.post(`/pos/cashier-sessions/${id}/cash-movements`, payload)),
+  summary: async (id: number) => unwrap<CashierSessionSummary>(await api.get(`/pos/cashier-sessions/${id}/summary`)),
+  orders: async (id: number, params?: Record<string, unknown>) => unwrap<LaravelPage<Order>>(await api.get(`/pos/cashier-sessions/${id}/orders`, { params })),
+  cashMovements: async (id: number, params?: Record<string, unknown>) => unwrap<LaravelPage<CashierCashMovement>>(await api.get(`/pos/cashier-sessions/${id}/cash-movements`, { params })),
+};
+
 export const attendanceApi = {
   list: async (params?: Record<string, unknown>) => toList(unwrap<Attendance[] | LaravelPage<Attendance>>(await api.get('/attendances', { params }))),
-  checkIn: async (payload: FormData) => unwrap<Attendance>(await api.post('/attendances/check-in', payload, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })),
-  checkOut: async (payload: { employee_id: number; notes?: string | null }) => unwrap<Attendance>(await api.post('/attendances/check-out', payload)),
+  today: async (params?: Record<string, unknown>) => unwrap<Attendance | null>(await api.get('/attendances/today', { params })),
+  summary: async (params?: Record<string, unknown>) => unwrap<AttendanceSummary>(await api.get('/attendances/summary', { params })),
+  // Content-Type dibiarkan otomatis agar axios menambahkan boundary multipart yang benar.
+  checkIn: async (payload: FormData) => unwrap<Attendance>(await api.post('/attendances/clock-in', payload)),
+  checkOut: async (payload: { employee_id: number; location_coordinates?: string | null; notes?: string | null }) => unwrap<Attendance>(await api.post('/attendances/clock-out', payload)),
 };
 

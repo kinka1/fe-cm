@@ -6,6 +6,7 @@ import { getApiError } from '../api/client';
 import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
+import { useAuth } from '../lib/auth';
 import type { Supplier } from '../types/api';
 
 const emptyForm: Partial<Supplier> = { supplier_name: '', contact_name: '', phone: '', email: '', address: '', status: 'active' };
@@ -15,6 +16,7 @@ export function SuppliersPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { storeId } = useAuth();
   const suppliers = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersApi.list() });
 
   const reset = () => { setForm(emptyForm); setEditingId(null); };
@@ -29,10 +31,15 @@ export function SuppliersPage() {
     onError: (error) => toast.error(getApiError(error)),
   });
 
-  const submit = (event: React.FormEvent) => { event.preventDefault(); save.mutate(form); };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const targetStoreId = form.store_id ?? storeId;
+    if (!targetStoreId) { toast.error('store_id tidak tersedia dari user login. Backend mewajibkan store_id untuk supplier.'); return; }
+    save.mutate({ ...form, store_id: targetStoreId });
+  };
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
         <div>
           <h1 className="text-2xl font-bold">Suppliers</h1>

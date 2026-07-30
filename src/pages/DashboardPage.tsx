@@ -1,4 +1,4 @@
-﻿import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Boxes, ClipboardList, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 import { assetsApi, posApi, stockAlertsApi } from '../api/endpoints';
 import { currency, toNumber } from '../lib/format';
@@ -27,7 +27,7 @@ export function DashboardPage() {
   ];
 
   return (
-    <section className="grid gap-6">
+    <section className="grid gap-5">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm text-muted">Ringkasan operasional POS dan asset management.</p>
@@ -35,7 +35,7 @@ export function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
-          <div key={card.label} className="rounded-md border border-line bg-white p-5 shadow-sm">
+          <div key={card.label} className="rounded-md border border-line bg-white p-4 shadow-sm">
             <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-md ${card.tone}`}><card.icon className="h-5 w-5" /></div>
             <p className="text-sm text-muted">{card.label}</p>
             <p className="mt-1 text-2xl font-bold">{card.value}</p>

@@ -7,6 +7,7 @@ import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui'
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { currency, decimal, toNumber } from '../lib/format';
 import { useToast } from '../lib/toast';
+import { useAuth } from '../lib/auth';
 import type { Product } from '../types/api';
 
 const blank: Partial<Product> = { product_name: '', sku: '', category_id: 0, description: '', unit_of_measure: 'pcs', minimum_stock: 0, current_stock: 0, cost_price: 0, selling_price: 0, is_active: true };
@@ -19,6 +20,7 @@ export function ProductsPage() {
   
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { storeId } = useAuth();
 
   // Queries
   const products = useQuery({ 
@@ -77,8 +79,11 @@ export function ProductsPage() {
 
   const submit = (event: React.FormEvent) => { 
     event.preventDefault(); 
+    const targetStoreId = editing.store_id ?? storeId;
+    if (!targetStoreId) { toast.error('store_id tidak tersedia dari user login. Backend mewajibkan store_id untuk produk.'); return; }
     save.mutate({ 
       ...editing, 
+      store_id: targetStoreId,
       category_id: Number(editing.category_id), 
       minimum_stock: toNumber(editing.minimum_stock), 
       current_stock: toNumber(editing.current_stock), 
@@ -95,7 +100,7 @@ export function ProductsPage() {
   };
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="min-w-0 grid gap-4">
         <div>
           <h1 className="text-2xl font-bold">Products</h1>

@@ -6,6 +6,7 @@ import { getApiError } from '../api/client';
 import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
+import { useAuth } from '../lib/auth';
 import { currency, decimal } from '../lib/format';
 import type { PurchaseOrderPayload, PurchaseOrderStatus } from '../types/api';
 
@@ -30,6 +31,7 @@ export function PurchaseOrdersPage() {
 
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { storeId } = useAuth();
 
   const orders = useQuery({ queryKey: ['purchase-orders', statusFilter], queryFn: () => purchaseOrdersApi.list(statusFilter ? { status: statusFilter } : undefined) });
   const suppliers = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersApi.list() });
@@ -72,7 +74,9 @@ export function PurchaseOrdersPage() {
     event.preventDefault();
     const validItems = items.filter((item) => item.product_id !== '' && Number(item.quantity) > 0);
     if (validItems.length === 0) { toast.error('Minimal satu item dengan produk dan quantity > 0'); return; }
+    if (!storeId) { toast.error('store_id tidak tersedia dari user login. Backend mewajibkan store_id untuk purchase order.'); return; }
     create.mutate({
+      store_id: storeId,
       supplier_id: supplierId === '' ? null : supplierId,
       order_date: orderDate,
       notes: notes || null,
@@ -81,7 +85,7 @@ export function PurchaseOrdersPage() {
   };
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

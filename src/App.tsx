@@ -15,15 +15,14 @@ import { ProductBatchesPage } from './pages/ProductBatchesPage';
 import { RecipesPage } from './pages/RecipesPage';
 import { StockAlertsPage } from './pages/StockAlertsPage';
 import { AttendancePage } from './pages/AttendancePage';
+import { TablesPage } from './pages/TablesPage';
+import { CashierSessionPage } from './pages/CashierSessionPage';
 import { UserOrderPage } from './pages/UserOrderPage';
+import { LoginPage } from './pages/LoginPage';
 import { Button } from './components/ui';
 import { type AppRole, getRoleHome, useAuth } from './lib/auth';
 
-const AUTH_GUARD_DISABLED = true;
-
 function ProtectedRoute() {
-  if (AUTH_GUARD_DISABLED) return <AppLayout />;
-
   const { isAuthenticated, role } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (role === 'user') return <Navigate to="/u" replace />;
@@ -31,11 +30,9 @@ function ProtectedRoute() {
 }
 
 function RoleRoute({ roles, children }: { roles: AppRole[]; children: React.ReactNode }) {
-  if (AUTH_GUARD_DISABLED) return children;
-
   const { role, canAccess } = useAuth();
   if (!canAccess(roles)) return <Navigate to={getRoleHome(role)} replace />;
-  return children;
+  return <>{children}</>;
 }
 
 function UnauthorizedPage() {
@@ -51,11 +48,11 @@ function UnauthorizedPage() {
   );
 }
 
-const adminOnly: AppRole[] = ['admin'];
-const adminAndKasir: AppRole[] = ['admin', 'kasir'];
+const adminOnly: AppRole[] = ['admin', 'supervisor'];
+const adminAndKasir: AppRole[] = ['admin', 'supervisor', 'kasir'];
 
 const router = createBrowserRouter([
-  { path: '/login', element: <Navigate to="/" replace /> },
+  { path: '/login', element: <LoginPage /> },
   { path: '/u', element: <UserOrderPage /> },
   { path: '/u/:qrCode', element: <UserOrderPage /> },
   { path: '/order', element: <UserOrderPage /> },
@@ -67,7 +64,9 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <RoleRoute roles={adminOnly}><DashboardPage /></RoleRoute> },
       { path: 'pos', element: <RoleRoute roles={adminAndKasir}><PosPage /></RoleRoute> },
+      { path: 'cashier-session', element: <RoleRoute roles={adminAndKasir}><CashierSessionPage /></RoleRoute> },
       { path: 'orders', element: <RoleRoute roles={adminAndKasir}><OrdersPage /></RoleRoute> },
+      { path: 'tables', element: <RoleRoute roles={adminOnly}><TablesPage /></RoleRoute> },
       { path: 'products', element: <RoleRoute roles={adminOnly}><ProductsPage /></RoleRoute> },
       { path: 'categories', element: <RoleRoute roles={adminOnly}><CategoriesPage /></RoleRoute> },
       { path: 'stock', element: <RoleRoute roles={adminOnly}><StockPage /></RoleRoute> },

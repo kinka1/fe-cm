@@ -1,7 +1,7 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, Search, Trash2 } from 'lucide-react';
-import { catalogApi, posApi } from '../api/endpoints';
+import { catalogApi, posApi, storesApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
 import { Button, Field, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
@@ -22,12 +22,19 @@ export function PosPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
   const [amountPaid, setAmountPaid] = useState('');
   const [discount, setDiscount] = useState('0');
+  const [storeId, setStoreId] = useState('');
   const { user } = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  const stores = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.list() });
+
+  // Default store dari user (current_store_id / employee.store_id) begitu daftar toko tersedia.
+  const defaultStoreId = user?.current_store_id ?? user?.employee?.store_id ?? null;
+  const effectiveStoreId = storeId || (defaultStoreId ? String(defaultStoreId) : '');
+
   const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
-  const menu = useQuery({ queryKey: ['pos-menu', search, categoryId], queryFn: () => posApi.menu({ search: search || undefined, category_id: categoryId || undefined, per_page: 100 }) });
+  const menu = useQuery({ queryKey: ['pos-menu', search, categoryId, effectiveStoreId], queryFn: () => posApi.menu({ search: search || undefined, category_id: categoryId || undefined, store_id: effectiveStoreId || undefined, per_page: 100 }) });
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + toNumber(item.product.selling_price) * item.quantity, 0), [cart]);
   const total = Math.max(0, subtotal - toNumber(discount));
@@ -59,8 +66,10 @@ export function PosPage() {
 
   const submit = () => {
     if (!user?.employee_id) { toast.error('employee_id tidak tersedia dari user login. Backend mewajibkan employee_id untuk order kasir.'); return; }
+    if (!effectiveStoreId) { toast.error('Pilih toko/cabang terlebih dahulu. Backend mewajibkan store_id untuk order kasir.'); return; }
     mutation.mutate({
       order_type: orderType,
+      store_id: Number(effectiveStoreId),
       table_id: orderType === 'dine_in_cashier' && tableId ? Number(tableId) : null,
       employee_id: user.employee_id,
       customer_name: customerName || null,
@@ -72,11 +81,12 @@ export function PosPage() {
   };
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="min-w-0 grid gap-4">
         <div><h1 className="text-2xl font-bold">POS Kasir</h1><p className="text-sm text-muted">Pilih menu, kelola cart, lalu submit order kasir.</p></div>
-        <div className="grid gap-3 rounded-md border border-line bg-white p-4 md:grid-cols-[1fr_220px]">
+        <div className="grid gap-3 rounded-md border border-line bg-white p-4 md:grid-cols-[1fr_200px_200px]">
           <div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-muted" /><Input className="pl-10" placeholder="Cari produk atau SKU" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+          <Select value={effectiveStoreId} onChange={(e) => setStoreId(e.target.value)}>{(stores.data?.length ?? 0) === 0 && <option value="">Semua toko</option>}{stores.data?.map((store) => <option key={store.id} value={store.id}>{store.store_name}</option>)}</Select>
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Semua kategori</option>{categories.data?.map((category) => <option key={category.id} value={category.id}>{category.category_name}</option>)}</Select>
         </div>
         {menu.isLoading && <LoadingState label="Memuat menu..." />}

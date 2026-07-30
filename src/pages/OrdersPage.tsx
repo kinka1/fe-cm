@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye } from 'lucide-react';
 import { posApi } from '../api/endpoints';
@@ -25,7 +25,7 @@ export function OrdersPage() {
   const rows = useMemo(() => orders.data?.data ?? [], [orders.data]);
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="min-w-0 grid gap-4">
         <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-sm text-muted">Pantau dan ubah status pesanan.</p></div>
         <div className="grid gap-3 rounded-md border border-line bg-white p-4 md:grid-cols-2"><Select value={orderStatus} onChange={(e) => setOrderStatus(e.target.value)}><option value="">Semua order status</option><option value="pending">Pending</option>{orderStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</Select><Select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}><option value="">Semua payment status</option>{(['pending','paid','cancelled'] as PaymentStatus[]).map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</Select></div>

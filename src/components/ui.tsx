@@ -5,7 +5,7 @@ export function Button({ className, variant = 'primary', ...props }: React.Butto
     <button
       {...props}
       className={clsx(
-        'inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-3.5 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
         variant === 'primary' && 'bg-brand text-white hover:bg-teal-800',
         variant === 'secondary' && 'border border-line bg-white text-ink hover:bg-slate-50',
         variant === 'ghost' && 'text-muted hover:bg-slate-100 hover:text-ink',
@@ -17,19 +17,19 @@ export function Button({ className, variant = 'primary', ...props }: React.Butto
 }
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={clsx('min-h-10 w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-teal-100', className)} />;
+  return <input {...props} className={clsx('min-h-9 w-full rounded-md border border-line bg-white px-3 py-1.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-teal-100', className)} />;
 }
 
 export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={clsx('min-h-20 w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-teal-100', className)} />;
+  return <textarea {...props} className={clsx('min-h-16 w-full rounded-md border border-line bg-white px-3 py-1.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-teal-100', className)} />;
 }
 
 export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={clsx('min-h-10 w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-teal-100', className)} />;
+  return <select {...props} className={clsx('min-h-9 w-full rounded-md border border-line bg-white px-3 py-1.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-teal-100', className)} />;
 }
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="grid gap-1.5 text-sm font-medium text-ink"><span>{label}</span>{children}</label>;
+  return <label className="grid gap-1 text-sm font-medium text-ink"><span>{label}</span>{children}</label>;
 }
 
 export function Badge({ children, tone = 'slate' }: { children: React.ReactNode; tone?: 'slate' | 'green' | 'amber' | 'red' | 'blue' }) {

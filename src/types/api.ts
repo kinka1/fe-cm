@@ -32,11 +32,25 @@ export interface User {
   role_id?: number | null;
   role_name?: string | null;
   role?: string | { name?: string | null; role_name?: string | null } | null;
-  employee?: { role_id?: number | null; role?: string | { name?: string | null; role_name?: string | null } | null } | null;
+  current_store_id?: number | null;
+  current_store?: Store | null;
+  employee?: { role_id?: number | null; store_id?: number | null; role?: string | { name?: string | null; role_name?: string | null } | null } | null;
+}
+
+export interface Store {
+  id: number;
+  store_name: string;
+  code: string;
+  address?: string | null;
+  phone?: string | null;
+  is_active: boolean | number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Category {
   id: number;
+  store_id?: number | null;
   category_name: string;
   description?: string | null;
   created_at?: string;
@@ -45,6 +59,7 @@ export interface Category {
 
 export interface Product {
   id: number;
+  store_id?: number | null;
   product_name: string;
   sku: string;
   category_id: number;
@@ -60,12 +75,17 @@ export interface Product {
   updated_at?: string;
 }
 
+export type TableStatus = 'available' | 'occupied' | 'reserved';
+
 export interface DiningTable {
   id: number;
+  store_id?: number | null;
   table_number: string;
   qr_code: string;
   capacity: number;
-  status: 'available' | 'occupied' | 'reserved';
+  status: TableStatus;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface TableMenuResponse {
@@ -122,11 +142,25 @@ export interface Order {
 
 export interface Employee {
   id: number;
+  store_id?: number | null;
   full_name: string;
   email: string;
+  phone?: string | null;
+  address?: string | null;
+  date_of_birth?: string | null;
   role_id: number;
+  role?: { id?: number; role_name?: string } | null;
+  photo_url?: string | null;
+  ktp_url?: string | null;
+  kk_url?: string | null;
   status: 'active' | 'inactive';
   join_date?: string;
+}
+
+export interface Role {
+  id: number;
+  role_name: string;
+  permissions?: string[] | null;
 }
 
 export interface StockTransaction {
@@ -152,6 +186,7 @@ export interface StockReportRow {
 
 export interface CashierOrderPayload {
   order_type: OrderType;
+  store_id: number;
   table_id?: number | null;
   employee_id: number;
   customer_name?: string | null;
@@ -172,6 +207,7 @@ export type SupplierStatus = 'active' | 'inactive';
 
 export interface Supplier {
   id: number;
+  store_id?: number | null;
   supplier_name: string;
   contact_name?: string | null;
   phone?: string | null;
@@ -211,8 +247,9 @@ export interface PurchaseOrder {
   updated_at?: string;
 }
 
-/** POST /purchase-orders. Backend generate po_number sendiri dan selalu set status 'draft'. */
+/** POST /purchase-orders. Backend generate po_number sendiri dan selalu set status 'draft'. store_id wajib. */
 export interface PurchaseOrderPayload {
+  store_id: number;
   supplier_id?: number | null;
   employee_id?: number | null;
   order_date: string;
@@ -220,8 +257,9 @@ export interface PurchaseOrderPayload {
   items: Array<{ product_id: number; quantity: number; unit_cost?: number | null; notes?: string | null }>;
 }
 
-/** PUT /purchase-orders/:id. Backend tidak menerima items di sini, dan status 'received' ditolak. */
+/** PUT /purchase-orders/:id. Backend tidak menerima items di sini, dan status 'received' ditolak. store_id wajib. */
 export interface PurchaseOrderUpdatePayload {
+  store_id: number;
   supplier_id?: number | null;
   employee_id?: number | null;
   order_date: string;
@@ -365,6 +403,8 @@ export interface Attendance {
   id: number;
   employee_id: number;
   employee?: Employee;
+  store_id?: number | null;
+  store?: Store | null;
   date: string;
   clock_in?: string | null;
   clock_out?: string | null;
@@ -374,6 +414,73 @@ export interface Attendance {
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface AttendanceSummary {
+  total: number;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpha: number;
+  clocked_in: number;
+  clocked_out: number;
+}
+
+export type CashierSessionStatus = 'open' | 'closed';
+export type CashMovementType = 'cash_in' | 'cash_out';
+
+export interface CashierCashMovement {
+  id: number;
+  cashier_session_id: number;
+  store_id?: number | null;
+  employee_id?: number | null;
+  type: 'cash_in' | 'cash_out';
+  amount: number | string;
+  category?: string | null;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CashierSession {
+  id: number;
+  store_id: number;
+  store?: Store | null;
+  employee_id?: number | null;
+  employee?: Employee | null;
+  opened_by?: number | null;
+  closed_by?: number | null;
+  opening_cash: number | string;
+  closing_cash?: number | string | null;
+  expected_cash?: number | string | null;
+  cash_difference?: number | string | null;
+  status: CashierSessionStatus;
+  opened_at?: string | null;
+  closed_at?: string | null;
+  opening_notes?: string | null;
+  closing_notes?: string | null;
+  orders?: Order[];
+  cash_movements?: CashierCashMovement[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CashierSessionSummary {
+  cashier_session_id: number;
+  store_id: number;
+  employee_id: number | null;
+  status: CashierSessionStatus;
+  opened_at?: string | null;
+  closed_at?: string | null;
+  opening_cash: number | string;
+  cash_sales: number | string;
+  qris_sales: number | string;
+  cash_in: number | string;
+  cash_out: number | string;
+  expected_cash: number | string;
+  closing_cash: number | string | null;
+  cash_difference: number | string | null;
+  total_orders: number;
 }
 
 

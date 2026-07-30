@@ -5,30 +5,38 @@ import { getApiError, tokenStore, userStore } from '../api/client';
 import type { User } from '../types/api';
 import { useToast } from './toast';
 
-export type AppRole = 'admin' | 'kasir' | 'user';
+export type AppRole = 'admin' | 'supervisor' | 'kasir' | 'user';
 
 interface AuthContextValue {
   user: User | null;
   token: string | null;
   role: AppRole;
+  storeId: number | null;
   isAuthenticated: boolean;
   login: (payload: { username: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
   canAccess: (roles: AppRole[]) => boolean;
 }
 
+/** store aktif user: current_store_id lalu fallback ke employee.store_id. */
+export function getUserStoreId(user: User | null): number | null {
+  return user?.current_store_id ?? user?.employee?.store_id ?? null;
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Backend RoleSeeder membuat role berurutan: operator (id 1), supervisor (id 2), admin (id 3).
 const roleIdMap: Record<number, AppRole> = {
-  1: 'admin',
-  2: 'kasir',
-  3: 'user',
+  1: 'kasir',
+  2: 'supervisor',
+  3: 'admin',
 };
 
 function normalizeRoleName(value: unknown): AppRole | null {
   if (typeof value !== 'string') return null;
   const role = value.toLowerCase().trim();
   if (['admin', 'administrator', 'owner', 'manager'].includes(role)) return 'admin';
+  if (['supervisor', 'spv'].includes(role)) return 'supervisor';
   if (['kasir', 'cashier', 'operator'].includes(role)) return 'kasir';
   if (['user', 'customer', 'pelanggan'].includes(role)) return 'user';
   return null;
@@ -37,14 +45,24 @@ function normalizeRoleName(value: unknown): AppRole | null {
 export function getUserRole(user: User | null): AppRole {
   if (!user) return 'user';
 
+  // 1. Nested employee.role (backend Laravel: user.employee.role.role_name)
+  const employeeRole = user.employee?.role;
+  if (employeeRole && typeof employeeRole === 'object') {
+    const nested = normalizeRoleName(employeeRole.role_name) ?? normalizeRoleName(employeeRole.name);
+    if (nested) return nested;
+  }
+
+  // 2. Direct role string / role_name on user
   const directRole = normalizeRoleName(user.role) ?? normalizeRoleName(user.role_name);
   if (directRole) return directRole;
 
+  // 3. Nested user.role object
   if (typeof user.role === 'object' && user.role) {
     const nestedRole = normalizeRoleName(user.role.name) ?? normalizeRoleName(user.role.role_name);
     if (nestedRole) return nestedRole;
   }
 
+  // 4. Fallback ke role_id (best-effort; backend seeder tidak menjamin urutan id)
   const roleId = user.role_id ?? user.employee?.role_id;
   if (typeof roleId === 'number' && roleIdMap[roleId]) return roleIdMap[roleId];
 
@@ -53,6 +71,7 @@ export function getUserRole(user: User | null): AppRole {
 
 export function getRoleHome(role: AppRole) {
   if (role === 'admin') return '/';
+  if (role === 'supervisor') return '/employees';
   if (role === 'kasir') return '/pos';
   return '/u';
 }
@@ -95,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [loginMutation]);
 
   const role = getUserRole(user);
+  const storeId = user?.current_store_id ?? user?.employee?.store_id ?? null;
 
   const canAccess = useCallback((roles: AppRole[]) => roles.includes(role), [role]);
 
@@ -102,11 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     token,
     role,
+    storeId,
     isAuthenticated: Boolean(token),
     login,
     logout,
     canAccess,
-  }), [user, token, role, login, logout, canAccess]);
+  }), [user, token, role, storeId, login, logout, canAccess]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

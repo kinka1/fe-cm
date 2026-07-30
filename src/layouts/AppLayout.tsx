@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { AlertTriangle, BarChart3, Boxes, Calendar, ChefHat, ClipboardList, ClipboardCheck, FolderTree, Layers, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, SlidersHorizontal, Truck, Users } from 'lucide-react';
+import { AlertTriangle, BarChart3, Boxes, Calendar, ChefHat, ClipboardList, ClipboardCheck, FolderTree, Grid3x3, Layers, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, SlidersHorizontal, Truck, Users, Wallet } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { type AppRole, useAuth } from '../lib/auth';
@@ -8,9 +8,12 @@ import { Button } from '../components/ui';
 const navItems: Array<{ to: string; label: string; icon: typeof LayoutDashboard; roles: AppRole[] }> = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin'] },
   { to: '/pos', label: 'POS Kasir', icon: ShoppingCart, roles: ['admin', 'kasir'] },
+  { to: '/cashier-session', label: 'Cashier Session', icon: Wallet, roles: ['admin', 'kasir'] },
   { to: '/orders', label: 'Orders', icon: ClipboardList, roles: ['admin', 'kasir'] },
+  { to: '/tables', label: 'Meja & QR', icon: Grid3x3, roles: ['admin'] },
   { to: '/products', label: 'Products', icon: Package, roles: ['admin'] },
   { to: '/categories', label: 'Categories', icon: FolderTree, roles: ['admin'] },
+  { to: '/tables', label: 'Meja & QR', icon: Grid3x3, roles: ['admin'] },
   { to: '/stock', label: 'Stock', icon: Boxes, roles: ['admin'] },
   { to: '/employees', label: 'Employees', icon: Users, roles: ['admin'] },
   { to: '/suppliers', label: 'Suppliers', icon: Truck, roles: ['admin'] },
@@ -25,18 +28,19 @@ const navItems: Array<{ to: string; label: string; icon: typeof LayoutDashboard;
 
 const roleLabel: Record<AppRole, string> = {
   admin: 'Admin',
+  supervisor: 'Supervisor',
   kasir: 'Kasir',
   user: 'User',
 };
-
-const AUTH_GUARD_DISABLED = true;
 
 export function AppLayout() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const activeRole: AppRole = AUTH_GUARD_DISABLED && !user ? 'admin' : role;
-  const visibleNavItems = AUTH_GUARD_DISABLED ? navItems : navItems.filter((item) => item.roles.includes(role));
+  const activeRole: AppRole = role;
+  // Supervisor mendapat akses setara admin (backend tidak membatasi route per-role).
+  const effectiveRole: AppRole = role === 'supervisor' ? 'admin' : role;
+  const visibleNavItems = navItems.filter((item) => item.roles.includes(effectiveRole));
 
   const handleLogout = async () => {
     await logout();

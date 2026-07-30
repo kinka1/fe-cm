@@ -115,7 +115,7 @@ export function StockPage() {
   if (products.isLoading || transactions.isLoading || report.isLoading) return <LoadingState />;
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1fr_390px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
         <div>
           <h1 className="text-2xl font-bold">Stock</h1>

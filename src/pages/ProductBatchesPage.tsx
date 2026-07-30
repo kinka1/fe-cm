@@ -61,7 +61,7 @@ export function ProductBatchesPage() {
   const submit = (event: React.FormEvent) => { event.preventDefault(); create.mutate(); };
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
         <div>
           <h1 className="text-2xl font-bold">Product Batches</h1>
