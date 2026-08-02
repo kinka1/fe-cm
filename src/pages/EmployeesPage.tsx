@@ -3,13 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { employeesApi, rolesApi, storesApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
+import { todayIso as today } from '../lib/date';
 import { Badge, Button, Field, Input, Select } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
 import type { Employee } from '../types/api';
-
-const today = () => new Date().toISOString().slice(0, 10);
 
 interface EmployeeForm {
   full_name: string;
@@ -127,19 +126,19 @@ export function EmployeesPage() {
   };
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="grid gap-4">
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="order-2 grid min-w-0 gap-4 xl:order-1">
         <div>
-          <h1 className="text-2xl font-bold">Employees</h1>
+          <h1 className="text-xl font-bold text-ink sm:text-2xl">Employees</h1>
           <p className="text-sm text-muted">Admin dapat menambah, mengedit, dan menghapus karyawan sesuai role.</p>
         </div>
         {employees.isLoading && <LoadingState />}
         {employees.error && <ErrorState message={getApiError(employees.error)} />}
         {!employees.isLoading && employees.data?.data.length === 0 && <EmptyState title="Employee kosong" />}
-        <div className="overflow-hidden rounded-md border border-line bg-white">
+        <div className="overflow-hidden rounded-card border border-line bg-card">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-muted">
+              <thead className="bg-subtle text-xs uppercase text-muted">
                 <tr>
                   <th className="px-4 py-3">Nama</th>
                   <th className="px-4 py-3">Email</th>
@@ -169,7 +168,7 @@ export function EmployeesPage() {
         </div>
       </div>
 
-      <aside className="rounded-md border border-line bg-white p-4 shadow-sm xl:sticky xl:top-20 h-fit">
+      <aside className="order-1 xl:order-2 rounded-card border border-line bg-card p-4 shadow-card xl:sticky xl:top-4 h-fit">
         <h2 className="mb-4 text-lg font-bold">{editingId ? 'Edit Employee' : 'Create Employee'}</h2>
         <form onSubmit={submit} className="grid gap-3">
           <Field label="Nama lengkap"><Input value={editing.full_name} onChange={(event) => setEditing({ ...editing, full_name: event.target.value })} required /></Field>

@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, PackageCheck, Plus, Trash2 } from 'lucide-react';
 import { catalogApi, purchaseOrdersApi, suppliersApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
-import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
+import { todayIso as today } from '../lib/date';
+import { Badge, Button, Field, IconButton, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
@@ -13,7 +14,6 @@ import type { PurchaseOrderPayload, PurchaseOrderStatus } from '../types/api';
 type DraftItem = { product_id: number | ''; quantity: string; unit_cost: string; notes: string };
 
 const emptyItem: DraftItem = { product_id: '', quantity: '1', unit_cost: '0', notes: '' };
-const today = () => new Date().toISOString().slice(0, 10);
 
 const statusTone: Record<PurchaseOrderStatus, 'slate' | 'green' | 'amber' | 'red'> = {
   draft: 'slate',
@@ -85,11 +85,11 @@ export function PurchaseOrdersPage() {
   };
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="grid gap-4">
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="order-2 grid min-w-0 gap-4 xl:order-1">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Purchase Orders</h1>
+            <h1 className="text-xl font-bold text-ink sm:text-2xl">Purchase Orders</h1>
             <p className="text-sm text-muted">PO ke supplier. Receive akan menambah stok lewat stock transaction.</p>
           </div>
           <Field label="Filter status">
@@ -109,7 +109,7 @@ export function PurchaseOrdersPage() {
 
         <div className="grid gap-3">
           {orders.data?.map((order) => (
-            <article key={order.id} className="rounded-md border border-line bg-white p-4">
+            <article key={order.id} className="rounded-card border border-line bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -159,7 +159,7 @@ export function PurchaseOrdersPage() {
         </div>
       </div>
 
-      <aside className="rounded-md border border-line bg-white p-4 shadow-sm xl:sticky xl:top-20 xl:self-start">
+      <aside className="order-1 xl:order-2 rounded-card border border-line bg-card p-4 shadow-card xl:sticky xl:top-4 xl:self-start">
         <h2 className="mb-4 text-lg font-bold">Create Purchase Order</h2>
         <form onSubmit={submit} className="grid gap-3">
           <Field label="Supplier">
@@ -186,7 +186,7 @@ export function PurchaseOrdersPage() {
                     </Select>
                   </div>
                   {items.length > 1 && (
-                    <button type="button" className="rounded p-2 text-red-600 hover:bg-red-50" onClick={() => setItems(items.filter((_, i) => i !== index))} aria-label="Hapus item"><Trash2 className="h-4 w-4" /></button>
+                    <IconButton type="button" label="Hapus item" tone="danger" onClick={() => setItems(items.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4" /></IconButton>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -198,7 +198,7 @@ export function PurchaseOrdersPage() {
             ))}
           </div>
 
-          <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
+          <div className="flex items-center justify-between rounded-md bg-subtle px-3 py-2 text-sm">
             <span className="font-medium text-muted">Estimasi total</span>
             <span className="font-bold">{currency(draftTotal)}</span>
           </div>

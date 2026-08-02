@@ -1,79 +1,120 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Boxes, ClipboardList, Package, ShoppingCart, TrendingUp } from 'lucide-react';
-import { assetsApi, posApi, stockAlertsApi } from '../api/endpoints';
-import { currency, toNumber } from '../lib/format';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Boxes, ClipboardList, Package, ShoppingCart, TrendingUp } from 'lucide-react';
+import { assetsApi, posApi, revenueApi, stockAlertsApi } from '../api/endpoints';
+import { currency, decimal, toNumber } from '../lib/format';
 import { ErrorState, LoadingState } from '../components/states';
+import { Button, Card, PageHeader, StatCard } from '../components/ui';
+import { useAuth } from '../lib/auth';
+import { todayIso, firstDayOfMonthIso } from '../lib/date';
 
 export function DashboardPage() {
+  const { storeId } = useAuth();
+  const today = todayIso();
+  const monthStart = firstDayOfMonthIso();
+
   const summary = useQuery({ queryKey: ['assets', 'summary'], queryFn: assetsApi.summary });
   const lowStock = useQuery({ queryKey: ['assets', 'low-stock-summary'], queryFn: assetsApi.lowStockSummary });
+  const movement = useQuery({ queryKey: ['assets', 'stock-movement-summary'], queryFn: assetsApi.stockMovementSummary });
   const alertSummary = useQuery({ queryKey: ['stock-alerts', 'summary'], queryFn: stockAlertsApi.summary });
   const orders = useQuery({ queryKey: ['orders', 'dashboard'], queryFn: () => posApi.orders() });
+
+  const todayRevenue = useQuery({
+    queryKey: ['revenue', 'daily', today, storeId],
+    queryFn: () => revenueApi.daily({ date: today, store_id: storeId }),
+  });
+
+  const monthRevenue = useQuery({
+    queryKey: ['revenue', 'summary', monthStart, today, storeId],
+    queryFn: () => revenueApi.summary({ from_date: monthStart, to_date: today, store_id: storeId }),
+  });
 
   if (summary.isLoading || orders.isLoading) return <LoadingState />;
   if (summary.error || orders.error) return <ErrorState message="Gagal memuat dashboard. Periksa backend dan VITE_API_BASE_URL." />;
 
-  const orderRows = orders.data?.data ?? [];
-  const paidSales = orderRows.filter((order) => order.payment_status === 'paid').reduce((sum, order) => sum + toNumber(order.total_amount), 0);
-  const s = summary.data;
+  const recentOrders = (orders.data?.data ?? []).slice(0, 6);
+  const assets = summary.data;
 
-  const cards = [
-    { label: 'Produk aktif', value: s?.active_products ?? 0, icon: Package, tone: 'bg-teal-50 text-brand' },
-    { label: 'Low stock items', value: s?.low_stock_items ?? 0, icon: AlertTriangle, tone: 'bg-amber-50 text-amber-600' },
-    { label: 'Nilai stok', value: currency(s?.stock_value ?? 0), icon: Boxes, tone: 'bg-sky-50 text-sky-600' },
-    { label: 'Transaksi stok hari ini', value: s?.today_transactions ?? 0, icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Order (paid)', value: currency(paidSales), icon: ShoppingCart, tone: 'bg-indigo-50 text-indigo-600' },
-    { label: 'Order terbaru', value: orders.data?.total ?? orderRows.length, icon: ClipboardList, tone: 'bg-purple-50 text-purple-600' },
+  const stats = [
+    { label: 'Pendapatan hari ini', value: currency(todayRevenue.data?.summary.total_revenue ?? 0), icon: ShoppingCart, tone: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Pendapatan bulan ini', value: currency(monthRevenue.data?.total_revenue ?? 0), icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Order hari ini', value: todayRevenue.data?.summary.total_orders ?? 0, icon: ClipboardList, tone: 'bg-purple-50 text-purple-600' },
+    { label: 'Produk aktif', value: assets?.active_products ?? 0, icon: Package, tone: 'bg-brand-soft text-brand-dark' },
+    { label: 'Item stok menipis', value: assets?.low_stock_items ?? 0, icon: AlertTriangle, tone: 'bg-amber-50 text-amber-600' },
+    { label: 'Nilai stok', value: currency(assets?.stock_value ?? 0), icon: Boxes, tone: 'bg-sky-50 text-sky-600' },
+  ];
+
+  const sumMovement = (type: 'in' | 'out') =>
+    movement.data?.filter((row) => row.transaction_type === type).reduce((total, row) => total + toNumber(row.total_quantity), 0) ?? 0;
+
+  const movements = [
+    { label: 'Stok masuk (total)', value: decimal(sumMovement('in')), icon: ArrowUpRight, tone: 'text-emerald-600' },
+    { label: 'Stok keluar (total)', value: decimal(sumMovement('out')), icon: ArrowDownRight, tone: 'text-red-600' },
+    { label: 'Transaksi stok hari ini', value: assets?.today_transactions ?? 0, icon: TrendingUp, tone: 'text-sky-600' },
   ];
 
   return (
     <section className="grid gap-5">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-sm text-muted">Ringkasan operasional POS dan asset management.</p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Ringkasan operasional POS dan pengelolaan stok."
+        actions={
+          <Link to="/revenue">
+            <Button variant="secondary">Lihat laporan pendapatan</Button>
+          </Link>
+        }
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {cards.map((card) => (
-          <div key={card.label} className="rounded-md border border-line bg-white p-4 shadow-sm">
-            <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-md ${card.tone}`}><card.icon className="h-5 w-5" /></div>
-            <p className="text-sm text-muted">{card.label}</p>
-            <p className="mt-1 text-2xl font-bold">{card.value}</p>
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {stats.map((stat) => (
+          <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} tone={stat.tone} />
         ))}
       </div>
 
       {alertSummary.data && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <span className="font-semibold">Stock alert:</span> {alertSummary.data.low_stock_count} low stock, {alertSummary.data.out_of_stock_count} out of stock.
+        <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <span className="font-semibold">Stock alert:</span> {alertSummary.data.low_stock_count} stok menipis, {alertSummary.data.out_of_stock_count} stok habis.
         </div>
       )}
 
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {movements.map((item) => (
+          <Card key={item.label} className="min-w-0">
+            <div className={`flex items-center gap-2 ${item.tone}`}>
+              <item.icon className="h-5 w-5 shrink-0" />
+              <span className="truncate text-sm font-semibold">{item.label}</span>
+            </div>
+            <p className="mt-2 text-xl font-bold sm:text-2xl">{item.value}</p>
+          </Card>
+        ))}
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-md border border-line bg-white p-5">
+        <Card className="min-w-0">
           <h2 className="font-bold">Order terakhir</h2>
-          <div className="mt-4 grid gap-3">
-            {orderRows.slice(0, 6).map((order) => (
-              <div key={order.id} className="flex items-center justify-between gap-3 border-b border-line pb-3 text-sm">
-                <span className="font-semibold">{order.order_number}</span>
-                <span>{currency(order.total_amount)}</span>
-              </div>
+          <ul className="mt-3 divide-y divide-line text-sm">
+            {recentOrders.map((order) => (
+              <li key={order.id} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="truncate font-semibold">{order.order_number}</span>
+                <span className="shrink-0">{currency(order.total_amount)}</span>
+              </li>
             ))}
-            {orderRows.length === 0 && <p className="text-sm text-muted">Belum ada order.</p>}
-          </div>
-        </div>
-        <div className="rounded-md border border-line bg-white p-5">
-          <h2 className="font-bold">Low stock</h2>
-          <div className="mt-4 grid gap-3">
+            {recentOrders.length === 0 && <li className="py-2.5 text-muted">Belum ada order.</li>}
+          </ul>
+        </Card>
+
+        <Card className="min-w-0">
+          <h2 className="font-bold">Stok menipis</h2>
+          <ul className="mt-3 divide-y divide-line text-sm">
             {lowStock.data?.slice(0, 8).map((item) => (
-              <div key={item.product_id} className="flex items-center justify-between gap-3 border-b border-line pb-3 text-sm">
-                <span className="font-semibold">{item.product_name ?? `Produk #${item.product_id}`}</span>
-                <span>{item.current_stock} / min {item.minimum_stock}</span>
-              </div>
+              <li key={item.product_id} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="truncate font-semibold">{item.product_name ?? `Produk #${item.product_id}`}</span>
+                <span className="shrink-0 text-muted">{item.current_stock} / min {item.minimum_stock}</span>
+              </li>
             ))}
-            {lowStock.data?.length === 0 && <p className="text-sm text-muted">Semua stok aman.</p>}
-          </div>
-        </div>
+            {lowStock.data?.length === 0 && <li className="py-2.5 text-muted">Semua stok aman.</li>}
+          </ul>
+        </Card>
       </div>
     </section>
   );

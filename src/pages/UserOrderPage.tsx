@@ -9,7 +9,7 @@ import { Button } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { currency, toNumber } from '../lib/format';
 import { useToast } from '../lib/toast';
-import type { DiningTable, Order, Product } from '../types/api';
+import type { Category, DiningTable, Order, Product } from '../types/api';
 
 interface CartItem {
   product: Product;
@@ -17,9 +17,9 @@ interface CartItem {
   notes: string;
 }
 
-// Heuristic to detect if a product belongs to a beverage/drink category
-const isBeverage = (product: Product, categoriesList?: any[]) => {
-  const cat = categoriesList?.find(c => c.id === product.category_id);
+/** Menebak apakah produk termasuk minuman; dipakai untuk memilih ikon menu. */
+const isBeverage = (product: Product, categoriesList?: Category[]) => {
+  const cat = categoriesList?.find((c) => c.id === product.category_id);
   if (!cat) {
     const name = product.product_name.toLowerCase();
     return name.includes('kopi') || name.includes('coffee') || name.includes('latte') || name.includes('tea') || name.includes('teh') || name.includes('ice') || name.includes('minum') || name.includes('drink') || name.includes('espresso') || name.includes('matcha') || name.includes('coklat') || name.includes('chocolate');
@@ -193,13 +193,10 @@ export function UserOrderPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center">
-      {/* Mobile-first centered phone mockup container */}
       <div className="w-full max-w-md bg-[#FDFBF7] text-[#2E1D19] min-h-screen flex flex-col shadow-2xl relative border-x border-[#FAF0E6] pb-24">
         
-        {/* VIEW 1: MENU CATALOG */}
         {!showCart ? (
           <>
-            {/* Premium Coffee Header */}
             <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#FAF0E6] px-4 py-3.5 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2">
                 <div className="h-9 w-9 bg-gradient-to-br from-[#4A2C2A] to-[#C8A27B] rounded-xl flex items-center justify-center text-white shadow">
@@ -211,7 +208,6 @@ export function UserOrderPage() {
                 </div>
               </div>
 
-              {/* Dine-In vs Pick-Up Toggle */}
               <div className="flex rounded-full bg-[#FAF5F0] p-0.5 border border-[#EADAC9]">
                 <button
                   onClick={() => setOrderType('dine-in')}
@@ -234,9 +230,7 @@ export function UserOrderPage() {
               </div>
             </header>
 
-            {/* Main scrollable body */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-              {/* Hero Banner Card */}
               <div className="bg-gradient-to-br from-[#4A2C2A] to-[#361E1C] rounded-2xl p-4 text-white shadow-md relative overflow-hidden flex justify-between items-center gap-4">
                 <div className="absolute right-0 bottom-0 opacity-5 pointer-events-none scale-150 transform translate-x-4 translate-y-4">
                   <Coffee className="h-32 w-32 text-white" />
@@ -250,7 +244,6 @@ export function UserOrderPage() {
                   <p className="text-[10px] text-white/80 max-w-[200px] leading-relaxed">Kustomisasi kopimu dan pesan instan langsung ke barista.</p>
                 </div>
 
-                {/* Table Number Display */}
                 <div className="relative z-10 rounded-xl bg-white/10 border border-white/20 px-3 py-2 text-center backdrop-blur-md min-w-[75px]">
                   <p className="text-[8px] font-bold uppercase text-[#C8A27B] tracking-wider">Meja</p>
                   <p className="text-xl font-black">{table?.table_number ?? (urlQrCode ? urlQrCode : 'Input')}</p>
@@ -266,7 +259,6 @@ export function UserOrderPage() {
                 </div>
               </div>
 
-               {/* Search Bar */}
                <div className="relative rounded-xl bg-[#FAF5F0] border border-[#EADAC9] px-3 py-2 flex items-center shadow-sm">
                  <Search className="h-4.5 w-4.5 text-[#8A6F6A]" />
                  <input
@@ -278,7 +270,6 @@ export function UserOrderPage() {
                  />
                </div>
 
-               {/* Store selector pills scrollable */}
                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                  <button
                    onClick={() => setSelectedStoreId('')}
@@ -307,7 +298,6 @@ export function UserOrderPage() {
                  ))}
                </div>
 
-               {/* Category selector pills scrollable */}
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   onClick={() => setCategoryId('')}
@@ -336,7 +326,6 @@ export function UserOrderPage() {
                 ))}
               </div>
 
-              {/* Menu listings */}
               {isLoading && <LoadingState label="Menyeduh kopi terbaik..." />}
               {error && <ErrorState message={getApiError(error)} />}
               {!isLoading && !error && menuRows.length === 0 && (
@@ -355,12 +344,10 @@ export function UserOrderPage() {
                         key={product.id}
                         className="bg-white rounded-2xl border border-[#FAF0E6] p-3 flex gap-3 shadow-sm hover:border-[#EADAC9] transition duration-200"
                       >
-                        {/* Monogram circle */}
                         <div className="h-16 w-16 bg-gradient-to-br from-[#4A2C2A] to-[#C8A27B] rounded-xl flex items-center justify-center text-white text-2xl font-black shrink-0 shadow-inner select-none">
                           {product.product_name.charAt(0)}
                         </div>
 
-                        {/* Info details */}
                         <div className="flex-1 flex flex-col justify-between min-w-0">
                           <div>
                             <span className="text-[8px] uppercase tracking-wider text-[#C8A27B] font-bold block">{product.sku}</span>
@@ -407,7 +394,6 @@ export function UserOrderPage() {
               )}
             </div>
 
-            {/* Bottom floating cart bar trigger */}
             {cart.length > 0 && (
               <div className="fixed bottom-0 w-full max-w-md z-30 border-t border-[#FAF0E6] bg-white/95 p-3.5 shadow-[0_-8px_25px_rgba(74,44,42,0.12)] backdrop-blur-md flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-200">
                 <div>
@@ -425,9 +411,7 @@ export function UserOrderPage() {
           </>
         ) : (
           
-          /* VIEW 2: DEDICATED MOBILE CART & CHECKOUT PAGE */
           <>
-            {/* Header back navigation */}
             <header className="sticky top-0 z-40 bg-white border-b border-[#FAF0E6] px-3 py-3.5 flex items-center gap-3">
               <button
                 onClick={() => setShowCart(false)}
@@ -439,7 +423,6 @@ export function UserOrderPage() {
             </header>
 
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              {/* Order Info Card */}
               <div className="rounded-2xl border border-[#EADAC9] bg-[#FAF5F0] p-4 flex items-center justify-between">
                 <div>
                   <span className="text-[8px] font-bold uppercase text-[#C8A27B] tracking-wider block">Metode Pelayanan</span>
@@ -452,7 +435,6 @@ export function UserOrderPage() {
                 </div>
               </div>
 
-              {/* Customer Name Input */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#7D645E] block">Nama Pemesan</label>
                 <input
@@ -465,7 +447,6 @@ export function UserOrderPage() {
                 />
               </div>
 
-              {/* Cart List */}
               <div className="space-y-3">
                 <span className="text-xs font-bold text-[#7D645E] block">Daftar Pesanan</span>
                 {cart.map((item) => {
@@ -488,13 +469,11 @@ export function UserOrderPage() {
                         </button>
                       </div>
 
-                      {/* Tailored Customizers depending on Drink vs Food */}
                       <div className="space-y-2 border-t border-[#FAF5F0] pt-2">
                         <span className="text-[9px] font-bold text-[#8A6F6A] block">Kustomisasi</span>
                         
                         {drink ? (
                           <>
-                            {/* DRINK CUSTOMIZERS */}
                             <div className="flex flex-wrap gap-1">
                               <button
                                 type="button"
@@ -587,7 +566,6 @@ export function UserOrderPage() {
                           </>
                         ) : (
                           <>
-                            {/* FOOD CUSTOMIZERS */}
                             <div className="flex flex-wrap gap-1">
                               <button
                                 type="button"
@@ -669,7 +647,6 @@ export function UserOrderPage() {
                         )}
                       </div>
 
-                      {/* Barista/Kitchen notes input */}
                       <div className="flex items-center gap-1.5 bg-[#FAF6F0] p-2 rounded-xl">
                         <MessageSquare className="h-3.5 w-3.5 text-[#C8A27B] shrink-0" />
                         <input
@@ -681,7 +658,6 @@ export function UserOrderPage() {
                         />
                       </div>
 
-                      {/* Qty controller and subtotal */}
                       <div className="flex items-center justify-between border-t border-[#FAF5F0] pt-2.5">
                         <div className="flex items-center gap-2 bg-[#FAF5F0] rounded-full p-0.5 border border-[#EADAC9]">
                           <button
@@ -707,7 +683,6 @@ export function UserOrderPage() {
                 })}
               </div>
 
-              {/* Bill Details Summary */}
               <div className="rounded-2xl bg-white border border-[#FAF0E6] p-4 space-y-2.5 shadow-sm text-xs">
                 <div className="flex justify-between text-[#7D645E]">
                   <span>Subtotal</span>
@@ -720,7 +695,6 @@ export function UserOrderPage() {
               </div>
             </div>
 
-            {/* Bottom floating checkout button */}
             <div className="absolute inset-x-0 bottom-0 z-30 border-t border-[#FAF0E6] bg-white p-3.5 shadow-md flex justify-center">
               <Button
                 onClick={submitOrder}
@@ -733,12 +707,10 @@ export function UserOrderPage() {
           </>
         )}
 
-        {/* INTERACTIVE QRIS PAYMENT MODAL (MOBILE BOUNDED) */}
         {showQrisModal && createdOrder && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-all duration-300">
             <div className="relative w-full max-w-sm overflow-hidden rounded-[28px] bg-white p-5 shadow-2xl border border-[#FAF0E6] animate-in fade-in zoom-in-95 duration-200">
               
-              {/* Close modal button */}
               <button
                 onClick={() => setShowQrisModal(false)}
                 className="absolute top-4 right-4 rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition"
@@ -753,7 +725,6 @@ export function UserOrderPage() {
                     <p className="text-[10px] text-[#7D645E]">Scan kode QRIS dibawah ini untuk membayar</p>
                   </div>
 
-                  {/* Simulated QRIS code pattern */}
                   <div className="bg-slate-50 rounded-2xl p-3 border border-[#EADAC9] max-w-[210px] mx-auto">
                     <div className="bg-[#122A4E] text-white py-0.5 px-2 rounded text-[8px] font-black tracking-widest uppercase mb-2 inline-block">
                       QRIS GPN
@@ -796,7 +767,6 @@ export function UserOrderPage() {
                       <rect x="78" y="78" width="6" height="6" fill="#1A1A1A" />
                       <rect x="88" y="88" width="10" height="10" fill="#1A1A1A" />
 
-                      {/* Coffee brand overlay center logo */}
                       <rect x="42" y="42" width="16" height="16" rx="4" fill="#4A2C2A" />
                       <text x="50" y="52" fontSize="9" fontWeight="black" fill="#C8A27B" textAnchor="middle">☕</text>
                     </svg>
@@ -804,7 +774,6 @@ export function UserOrderPage() {
                     <p className="text-[9px] font-bold text-[#8A6F6A] mt-1.5 uppercase tracking-wide">NMID: ID20261108229</p>
                   </div>
 
-                  {/* Summary bill Details */}
                   <div className="rounded-2xl bg-[#FAF5F0] p-3 text-left border border-[#FAF0E6] text-[11px] space-y-1">
                     <div className="flex justify-between">
                       <span className="text-[#8A6F6A]">Nomor Order</span>
@@ -827,7 +796,6 @@ export function UserOrderPage() {
                     </div>
                   </div>
 
-                  {/* Simulation Confirm payment */}
                   <Button
                     onClick={handleSimulatePayment}
                     className="w-full rounded-full bg-[#4A2C2A] hover:bg-[#3D2321] text-white py-3 font-bold text-xs shadow flex items-center justify-center gap-1.5"

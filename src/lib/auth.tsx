@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/endpoints';
 import { getApiError, tokenStore, userStore } from '../api/client';
-import type { User } from '../types/api';
+import type { Store, User } from '../types/api';
 import { useToast } from './toast';
 
 export type AppRole = 'admin' | 'supervisor' | 'kasir' | 'user';
@@ -12,10 +12,15 @@ interface AuthContextValue {
   token: string | null;
   role: AppRole;
   storeId: number | null;
+  /** Toko yang boleh diakses user (pivot employee_store di backend). */
+  stores: Store[];
   isAuthenticated: boolean;
   login: (payload: { username: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
   canAccess: (roles: AppRole[]) => boolean;
+  /** Ganti toko aktif (POST /me/current-store) lalu segarkan seluruh query. */
+  setCurrentStore: (storeId: number) => Promise<void>;
+  switchingStore: boolean;
 }
 
 /** store aktif user: current_store_id lalu fallback ke employee.store_id. */
@@ -89,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userStore.set(nextUser);
       setToken(nextToken);
       setUser(nextUser);
+      queryClient.setQueryData(['me'], nextUser);
       toast.success('Login berhasil');
     },
     onError: (error) => toast.error(getApiError(error)),
@@ -113,21 +119,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result.user;
   }, [loginMutation]);
 
-  const role = getUserRole(user);
-  const storeId = user?.current_store_id ?? user?.employee?.store_id ?? null;
+  /**
+   * User di localStorage adalah snapshot saat login: role, employee, atau toko
+   * aktif bisa sudah berubah di backend. Ambil ulang /me tiap app dimuat supaya
+   * gating role dan store_id tidak memakai data basi. Cache-nya sekalian jadi
+   * sumber kebenaran user, jadi tidak perlu disalin balik ke state.
+   */
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const me = await authApi.me();
+      userStore.set(me);
+      return me;
+    },
+    enabled: Boolean(token),
+    staleTime: 60_000,
+  });
+
+  const storesQuery = useQuery({
+    queryKey: ['me', 'stores'],
+    queryFn: authApi.stores,
+    enabled: Boolean(token),
+  });
+
+  const switchStore = useMutation({
+    mutationFn: authApi.updateCurrentStore,
+    onSuccess: (nextUser) => {
+      userStore.set(nextUser);
+      setUser(nextUser);
+      queryClient.setQueryData(['me'], nextUser);
+      toast.success(`Toko aktif: ${nextUser.current_store?.store_name ?? nextUser.current_store_id}`);
+      // Hampir semua query di-scope per toko, jadi semuanya harus diambil ulang.
+      queryClient.invalidateQueries();
+    },
+    onError: (error) => toast.error(getApiError(error)),
+  });
+
+  const setCurrentStore = useCallback(async (nextStoreId: number) => {
+    await switchStore.mutateAsync(nextStoreId);
+  }, [switchStore]);
+
+  // Snapshot localStorage dipakai sampai /me selesai supaya tidak ada flicker logout.
+  const currentUser = meQuery.data ?? user;
+  const role = getUserRole(currentUser);
+  const storeId = currentUser?.current_store_id ?? currentUser?.employee?.store_id ?? null;
+  const stores = useMemo(() => storesQuery.data ?? [], [storesQuery.data]);
 
   const canAccess = useCallback((roles: AppRole[]) => roles.includes(role), [role]);
 
   const value = useMemo<AuthContextValue>(() => ({
-    user,
+    user: currentUser,
     token,
     role,
     storeId,
+    stores,
     isAuthenticated: Boolean(token),
     login,
     logout,
     canAccess,
-  }), [user, token, role, storeId, login, logout, canAccess]);
+    setCurrentStore,
+    switchingStore: switchStore.isPending,
+  }), [currentUser, token, role, storeId, stores, login, logout, canAccess, setCurrentStore, switchStore.isPending]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

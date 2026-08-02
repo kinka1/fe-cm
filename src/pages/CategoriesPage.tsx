@@ -1,29 +1,114 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { catalogApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
-import { Button, Field, Input, Textarea } from '../components/ui';
+import { Button, Card, Field, IconButton, Input, PageHeader, SplitLayout, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
 import type { Category } from '../types/api';
 
+const EMPTY_FORM: Partial<Category> = { category_name: '', description: '' };
+
 export function CategoriesPage() {
-  const [editing, setEditing] = useState<Partial<Category>>({ category_name: '', description: '' });
+  const [form, setForm] = useState<Partial<Category>>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<number | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
   const { storeId } = useAuth();
+
   const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
-  const save = useMutation({ mutationFn: (payload: Partial<Category>) => editingId ? catalogApi.updateCategory(editingId, payload) : catalogApi.createCategory(payload), onSuccess: () => { toast.success(editingId ? 'Kategori diperbarui' : 'Kategori dibuat'); setEditing({ category_name: '', description: '' }); setEditingId(null); queryClient.invalidateQueries({ queryKey: ['categories'] }); }, onError: (error) => toast.error(getApiError(error)) });
-  const remove = useMutation({ mutationFn: catalogApi.deleteCategory, onSuccess: () => { toast.success('Kategori dihapus'); queryClient.invalidateQueries({ queryKey: ['categories'] }); }, onError: (error) => toast.error(getApiError(error)) });
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    const targetStoreId = editing.store_id ?? storeId;
-    if (!targetStoreId) { toast.error('store_id tidak tersedia dari user login. Backend mewajibkan store_id untuk kategori.'); return; }
-    save.mutate({ ...editing, store_id: targetStoreId });
+
+  const reset = () => {
+    setForm(EMPTY_FORM);
+    setEditingId(null);
   };
 
-  return <section className="grid gap-5 xl:grid-cols-[1fr_360px]"><div className="grid gap-4"><div><h1 className="text-2xl font-bold">Categories</h1><p className="text-sm text-muted">CRUD kategori sesuai endpoint /api/categories.</p></div>{categories.isLoading && <LoadingState />}{categories.error && <ErrorState message={getApiError(categories.error)} />}{!categories.isLoading && categories.data?.length === 0 && <EmptyState title="Kategori kosong" />}<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{categories.data?.map((category) => <div key={category.id} className="rounded-md border border-line bg-white p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="font-bold">{category.category_name}</h2><p className="mt-1 text-sm text-muted">{category.description || 'Tidak ada deskripsi'}</p></div><div className="flex gap-1"><button className="rounded p-2 text-muted hover:bg-slate-100" onClick={() => { setEditing(category); setEditingId(category.id); }}><Edit2 className="h-4 w-4" /></button><button className="rounded p-2 text-red-600 hover:bg-red-50" onClick={() => remove.mutate(category.id)}><Trash2 className="h-4 w-4" /></button></div></div></div>)}</div></div><aside className="rounded-md border border-line bg-white p-4 shadow-sm lg:sticky lg:top-20"><h2 className="mb-4 text-lg font-bold">{editingId ? 'Edit Category' : 'Create Category'}</h2><form onSubmit={submit} className="grid gap-3"><Field label="Category name"><Input value={editing.category_name ?? ''} onChange={(e) => setEditing({ ...editing, category_name: e.target.value })} required /></Field><Field label="Description"><Textarea value={editing.description ?? ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></Field><div className="flex gap-2"><Button disabled={save.isPending}><Plus className="h-4 w-4" />Save</Button><Button type="button" variant="secondary" onClick={() => { setEditing({ category_name: '', description: '' }); setEditingId(null); }}>Reset</Button></div></form></aside></section>;
+  const save = useMutation({
+    mutationFn: (payload: Partial<Category>) => (editingId ? catalogApi.updateCategory(editingId, payload) : catalogApi.createCategory(payload)),
+    onSuccess: () => {
+      toast.success(editingId ? 'Kategori diperbarui' : 'Kategori dibuat');
+      reset();
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: (error) => toast.error(getApiError(error)),
+  });
+
+  const remove = useMutation({
+    mutationFn: catalogApi.deleteCategory,
+    onSuccess: () => {
+      toast.success('Kategori dihapus');
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: (error) => toast.error(getApiError(error)),
+  });
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const targetStoreId = form.store_id ?? storeId;
+
+    if (!targetStoreId) {
+      toast.error('Toko aktif belum dipilih. Backend mewajibkan store_id untuk kategori.');
+      return;
+    }
+
+    save.mutate({ ...form, store_id: targetStoreId });
+  };
+
+  return (
+    <section className="grid gap-5">
+      <PageHeader title="Kategori" description="Kelompok produk yang dipakai di menu POS dan katalog." />
+
+      <SplitLayout
+        main={
+          <>
+            {categories.isLoading && <LoadingState />}
+            {categories.error && <ErrorState message={getApiError(categories.error)} />}
+            {!categories.isLoading && !categories.error && categories.data?.length === 0 && (
+              <EmptyState title="Kategori kosong" description="Tambahkan kategori lewat form di samping." />
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+              {categories.data?.map((category) => (
+                <Card key={category.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate font-bold">{category.category_name}</h2>
+                    <p className="mt-1 text-sm text-muted">{category.description || 'Tidak ada deskripsi'}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <IconButton label="Edit kategori" onClick={() => { setForm(category); setEditingId(category.id); }}>
+                      <Edit2 className="h-4 w-4" />
+                    </IconButton>
+                    <IconButton label="Hapus kategori" tone="danger" onClick={() => remove.mutate(category.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </IconButton>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </>
+        }
+        aside={
+          <Card>
+            <h2 className="mb-4 text-lg font-bold">{editingId ? 'Edit Kategori' : 'Buat Kategori'}</h2>
+            <form onSubmit={submit} className="grid gap-3">
+              <Field label="Nama kategori" required>
+                <Input value={form.category_name ?? ''} onChange={(event) => setForm({ ...form, category_name: event.target.value })} required />
+              </Field>
+              <Field label="Deskripsi">
+                <Textarea value={form.description ?? ''} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+              </Field>
+              <div className="flex gap-2">
+                <Button type="submit" loading={save.isPending}>
+                  <Plus className="h-4 w-4" />Simpan
+                </Button>
+                <Button type="button" variant="secondary" onClick={reset}>Reset</Button>
+              </div>
+            </form>
+          </Card>
+        }
+      />
+    </section>
+  );
 }

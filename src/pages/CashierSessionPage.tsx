@@ -94,11 +94,11 @@ export function CashierSessionPage() {
   const session = current.data;
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="grid gap-4">
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="order-2 grid min-w-0 gap-4 xl:order-1">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Cashier Session</h1>
+            <h1 className="text-xl font-bold text-ink sm:text-2xl">Cashier Session</h1>
             <p className="text-sm text-muted">Buka & tutup kas, catat pergerakan kas, dan lihat ringkasan sesi berjalan.</p>
           </div>
           <Button variant="secondary" onClick={refreshAll}><RefreshCw className="h-4 w-4" />Refresh</Button>
@@ -112,7 +112,7 @@ export function CashierSessionPage() {
 
         {session && (
           <>
-            <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+            <div className="rounded-card border border-line bg-card p-4 shadow-card">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export function CashierSessionPage() {
               )}
             </div>
 
-            <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+            <div className="rounded-card border border-line bg-card p-4 shadow-card">
               <h2 className="mb-3 font-bold text-lg">Riwayat Pergerakan Kas</h2>
               {movements.isLoading && <LoadingState />}
               {movements.error && <ErrorState message={getApiError(movements.error)} />}
@@ -168,9 +168,9 @@ export function CashierSessionPage() {
         )}
       </div>
 
-      <aside className="grid content-start gap-4 xl:sticky xl:top-20 xl:self-start">
+      <aside className="order-1 xl:order-2 grid content-start gap-4 xl:sticky xl:top-4 xl:self-start">
         {!session ? (
-          <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+          <div className="rounded-card border border-line bg-card p-4 shadow-card">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold"><DoorOpen className="h-5 w-5 text-emerald-600" />Buka Sesi Kasir</h2>
             <form onSubmit={(e) => { e.preventDefault(); openMutation.mutate(); }} className="grid gap-3">
               <Field label="Toko/Cabang">
@@ -186,7 +186,7 @@ export function CashierSessionPage() {
           </div>
         ) : (
           <>
-            <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+            <div className="rounded-card border border-line bg-card p-4 shadow-card">
               <h2 className="mb-4 font-bold text-lg">Catat Pergerakan Kas</h2>
               <form onSubmit={(e) => { e.preventDefault(); moveMutation.mutate(); }} className="grid gap-3">
                 <Field label="Tipe">
@@ -202,11 +202,11 @@ export function CashierSessionPage() {
               </form>
             </div>
 
-            <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+            <div className="rounded-card border border-line bg-card p-4 shadow-card">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold"><DoorClosed className="h-5 w-5 text-red-600" />Tutup Sesi Kasir</h2>
               <form onSubmit={(e) => { e.preventDefault(); closeMutation.mutate(); }} className="grid gap-3">
                 {summary.data && (
-                  <div className="rounded-md bg-slate-50 p-3 text-sm">
+                  <div className="rounded-md bg-subtle p-3 text-sm">
                     <div className="flex justify-between"><span className="text-muted">Perkiraan kas akhir</span><strong>{currency(summary.data.expected_cash)}</strong></div>
                     {closingCash !== '' && (
                       <div className="mt-1 flex justify-between"><span className="text-muted">Selisih</span><strong>{currency(Number(closingCash) - Number(summary.data.expected_cash))}</strong></div>
@@ -227,7 +227,7 @@ export function CashierSessionPage() {
 
 function SummaryCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-3 text-center ${highlight ? 'border-brand/40 bg-teal-50' : 'border-line bg-slate-50'}`}>
+    <div className={`rounded-md border p-3 text-center ${highlight ? 'border-brand/40 bg-teal-50' : 'border-line bg-subtle'}`}>
       <span className="block text-xs uppercase font-semibold text-muted">{label}</span>
       <span className={`mt-0.5 block text-lg font-bold ${highlight ? 'text-brand' : 'text-ink'}`}>{value}</span>
     </div>

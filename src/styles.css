@@ -3,53 +3,13 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: light;
 }
 
 body {
   margin: 0;
-  background: #eef7f4;
-}
-.login-screen {
-  background:
-    radial-gradient(circle at 12% 18%, rgba(245, 158, 11, 0.32), transparent 28%),
-    radial-gradient(circle at 86% 18%, rgba(20, 184, 166, 0.28), transparent 26%),
-    linear-gradient(135deg, #12323a 0%, #0f766e 52%, #f59e0b 100%);
-}
-
-.admin-shell {
-  background:
-    radial-gradient(circle at 78% 0%, rgba(245, 158, 11, 0.18), transparent 30%),
-    linear-gradient(180deg, #e7f6f1 0%, #f8f1df 100%);
-}
-
-.admin-shell .bg-white {
-  background-color: #fffaf0;
-}
-
-.admin-shell .bg-slate-50 {
-  background-color: #e8f5f2;
-}
-
-.admin-shell .border-line {
-  border-color: #cbded9;
-}
-
-.admin-shell .shadow-sm {
-  box-shadow: 0 12px 28px rgba(18, 50, 58, 0.08);
-}
-
-.user-order-hero {
-  background:
-    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.26), transparent 28%),
-    linear-gradient(135deg, #d9481f 0%, #8f2414 52%, #26110c 100%);
-}
-
-.menu-plate {
-  background:
-    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22), transparent 26%),
-    linear-gradient(135deg, #e85d2a 0%, #b93418 55%, #5b1f12 100%);
+  background: theme('colors.surface');
 }
 
 button,
@@ -57,4 +17,31 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+/* Latar bertekstur untuk shell admin; halaman publik memakai palet sendiri. */
+.admin-shell {
+  background:
+    radial-gradient(circle at 78% 0%, rgba(245, 158, 11, 0.18), transparent 30%),
+    linear-gradient(180deg, #e7f6f1 0%, #f8f1df 100%);
+}
+
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
 }

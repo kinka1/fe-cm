@@ -1,4 +1,4 @@
-import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -25,6 +25,8 @@ const toList = <T>(payload: T[] | LaravelPage<T> | { data?: T[] | LaravelPage<T>
 
 export const authApi = {
   login: async (payload: { username: string; password: string }) => unwrap<{ user: User; token: string }>(await api.post('/auth/login', payload)),
+  // Backend membuat employee + user sekaligus lalu langsung mengembalikan token.
+  register: async (payload: RegisterPayload) => unwrap<{ user: User; token: string }>(await api.post('/auth/register', payload)),
   me: async () => unwrap<User>(await api.get('/me')),
   stores: async () => toList(unwrap<Store[] | LaravelPage<Store>>(await api.get('/me/stores'))),
   updateCurrentStore: async (store_id: number) => unwrap<User>(await api.post('/me/current-store', { store_id })),
@@ -46,6 +48,7 @@ export const catalogApi = {
 };
 
 export const posApi = {
+  paymentMethods: async () => toList(unwrap<PaymentMethodOption[]>(await api.get('/pos/payment-methods'))),
   menu: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Product>>(await api.get('/pos/menu', { params })),
   tableMenu: async (qrCode: string, params?: Record<string, unknown>) => unwrap<TableMenuResponse>(await api.get(`/pos/tables/${qrCode}/menu`, { params })),
   createQrOrder: async (payload: QrOrderPayload) => unwrap<Order>(await api.post('/pos/qr-orders', payload)),
@@ -53,6 +56,39 @@ export const posApi = {
   orders: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Order>>(await api.get('/pos/orders', { params })),
   order: async (id: number) => unwrap<Order>(await api.get(`/pos/orders/${id}`)),
   updateStatus: async (id: number, order_status: OrderStatus) => unwrap<Order>(await api.patch(`/pos/orders/${id}/status`, { order_status })),
+};
+
+/**
+ * Cart POS yang tersimpan di server (tabel pos_carts). Dipakai untuk fitur
+ * "tahan order": kasir bisa punya beberapa cart bernama per toko dan
+ * melanjutkannya dari device lain. Semua respons sudah berbentuk PosCart.
+ */
+export const cartApi = {
+  list: async (store_id: number, status?: PosCart['status']) => toList(unwrap<PosCart[]>(await api.get('/pos/carts', { params: { store_id, status } }))),
+  create: async (payload: { store_id: number; name: string }) => unwrap<PosCart>(await api.post('/pos/carts', payload)),
+  show: async (id: number) => unwrap<PosCart>(await api.get(`/pos/carts/${id}`)),
+  rename: async (id: number, name: string) => unwrap<PosCart>(await api.patch(`/pos/carts/${id}`, { name })),
+  remove: async (id: number) => unwrap<null>(await api.delete(`/pos/carts/${id}`)),
+  addItem: async (id: number, payload: { product_id: number; quantity: number; notes?: string | null }) => unwrap<PosCart>(await api.post(`/pos/carts/${id}/items`, payload)),
+  updateItem: async (id: number, itemId: number, payload: { quantity: number; notes?: string | null }) => unwrap<PosCart>(await api.patch(`/pos/carts/${id}/items/${itemId}`, payload)),
+  removeItem: async (id: number, itemId: number) => unwrap<PosCart>(await api.delete(`/pos/carts/${id}/items/${itemId}`)),
+  clear: async (id: number) => unwrap<PosCart>(await api.delete(`/pos/carts/${id}/items`)),
+  checkout: async (id: number, payload: CartCheckoutPayload) => unwrap<Order>(await api.post(`/pos/carts/${id}/checkout`, payload)),
+};
+
+/**
+ * Aturan validasi `boolean` Laravel menolak string "true"/"false" — dan itulah yang
+ * dikirim axios untuk boolean JS di query string. Kirim 1/0 supaya lolos validasi.
+ */
+const asFlag = (value?: boolean) => (value === undefined ? undefined : value ? 1 : 0);
+
+/** Laporan pendapatan; semua endpoint hanya menghitung order dengan payment_status = paid. */
+export const revenueApi = {
+  summary: async (params: { from_date: string; to_date: string; store_id?: number | null; payment_method?: string | null }) => unwrap<RevenueSummary>(await api.get('/revenue/summary', { params })),
+  daily: async ({ include_orders, ...params }: { date?: string; store_id?: number | null; payment_method?: string | null; include_orders?: boolean; per_page?: number }) =>
+    unwrap<RevenueDailyResponse>(await api.get('/revenue/daily', { params: { ...params, include_orders: asFlag(include_orders) } })),
+  sales: async ({ include_orders, ...params }: { from_date: string; to_date: string; store_id?: number | null; category_id?: number | null; product_id?: number | null; payment_method?: string | null; group_by?: string | null; include_orders?: boolean; per_page?: number }) =>
+    unwrap<SalesReportResponse>(await api.get('/revenue/sales', { params: { ...params, include_orders: asFlag(include_orders) } })),
 };
 
 export const stockApi = {
@@ -79,6 +115,9 @@ export const employeesApi = {
 
 export const rolesApi = {
   list: async () => toList(unwrap<Role[] | LaravelPage<Role>>(await api.get('/roles'))),
+  create: async (payload: { role_name: string }) => unwrap<Role>(await api.post('/roles', payload)),
+  update: async (id: number, payload: { role_name: string }) => unwrap<Role>(await api.put(`/roles/${id}`, payload)),
+  delete: async (id: number) => unwrap<null>(await api.delete(`/roles/${id}`)),
 };
 
 export const suppliersApi = {
@@ -137,7 +176,7 @@ export const stockAlertsApi = {
 export const assetsApi = {
   summary: async () => unwrap<AssetsSummary>(await api.get('/assets/summary')),
   lowStockSummary: async () => toList(unwrap<StockAlertRow[] | LaravelPage<StockAlertRow>>(await api.get('/assets/low-stock-summary'))),
-  stockMovementSummary: async () => toList(unwrap<Array<{ product_id: number; transaction_type: string; total_quantity: number | string }> | LaravelPage<{ product_id: number; transaction_type: string; total_quantity: number | string }>>(await api.get('/assets/stock-movement-summary'))),
+  stockMovementSummary: async () => toList(unwrap<StockMovementSummaryRow[] | LaravelPage<StockMovementSummaryRow>>(await api.get('/assets/stock-movement-summary'))),
 };
 
 export const storesApi = {
@@ -176,5 +215,10 @@ export const attendanceApi = {
   // Content-Type dibiarkan otomatis agar axios menambahkan boundary multipart yang benar.
   checkIn: async (payload: FormData) => unwrap<Attendance>(await api.post('/attendances/clock-in', payload)),
   checkOut: async (payload: { employee_id: number; location_coordinates?: string | null; notes?: string | null }) => unwrap<Attendance>(await api.post('/attendances/clock-out', payload)),
+  // Input manual (apiResource attendances) untuk koreksi absensi oleh admin.
+  show: async (id: number) => unwrap<Attendance>(await api.get(`/attendances/${id}`)),
+  create: async (payload: AttendancePayload) => unwrap<Attendance>(await api.post('/attendances', payload)),
+  update: async (id: number, payload: AttendancePayload) => unwrap<Attendance>(await api.put(`/attendances/${id}`, payload)),
+  delete: async (id: number) => unwrap<null>(await api.delete(`/attendances/${id}`)),
 };
 

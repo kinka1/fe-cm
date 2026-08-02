@@ -106,8 +106,17 @@ export interface OrderDetail {
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
-export type PaymentMethod = 'cash' | 'qris';
+/** Backend menerima cash, qris, dan transfer (lihat CreateCashierOrderRequest & PaymentMethodController). */
+export type PaymentMethod = 'cash' | 'qris' | 'transfer';
 export type OrderType = 'dine_in_cashier' | 'takeaway';
+
+/** GET /pos/payment-methods — daftar metode bayar beserta aturan input kasir. */
+export interface PaymentMethodOption {
+  value: PaymentMethod;
+  label: string;
+  requires_amount_paid: boolean;
+  has_change: boolean;
+}
 
 export interface Payment {
   id: number;
@@ -123,6 +132,9 @@ export interface Payment {
 export interface Order {
   id: number;
   order_number: string;
+  store_id?: number | null;
+  store?: Store | null;
+  cashier_session_id?: number | null;
   table_id?: number | null;
   order_type: OrderType | 'dine_in_qr';
   customer_name?: string | null;
@@ -465,6 +477,165 @@ export interface CashierSession {
   updated_at?: string;
 }
 
+export type PosCartStatus = 'active' | 'checked_out' | 'cancelled';
+
+/** Item cart POS yang tersimpan di server (tabel pos_cart_items). */
+export interface PosCartItem {
+  id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  notes?: string | null;
+  product: Product;
+}
+
+/**
+ * Bentuk respons CartController::cartResponse — bukan model mentah:
+ * subtotal & total_items sudah dihitung backend.
+ */
+export interface PosCart {
+  id: number;
+  user_id: number;
+  store_id: number;
+  name?: string | null;
+  status: PosCartStatus;
+  items: PosCartItem[];
+  subtotal: number;
+  total_items: number;
+}
+
+/** Body POST /pos/carts/:id/checkout. store_id ikut dari cart, jadi tidak dikirim. */
+export interface CartCheckoutPayload {
+  order_type: OrderType;
+  table_id?: number | null;
+  customer_name?: string | null;
+  payment_method: PaymentMethod;
+  amount_paid?: number | null;
+  discount?: number;
+}
+
+export interface RevenueDailyRow {
+  date: string;
+  total_orders: number;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  payment_fee: number;
+  revenue: number;
+  cash_revenue: number;
+  qris_revenue: number;
+  transfer_revenue: number;
+}
+
+/** GET /revenue/summary — agregat rentang tanggal + rincian harian. */
+export interface RevenueSummary {
+  from_date: string;
+  to_date: string;
+  store_id: number | null;
+  payment_method: PaymentMethod | null;
+  total_orders: number;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  payment_fee: number;
+  total_revenue: number;
+  cash_revenue: number;
+  qris_revenue: number;
+  transfer_revenue: number;
+  daily_details: RevenueDailyRow[];
+}
+
+export interface RevenueDayStat {
+  date: string;
+  store_id: number | null;
+  payment_method: PaymentMethod | null;
+  total_orders: number;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  payment_fee: number;
+  total_revenue: number;
+  cash_revenue: number;
+  qris_revenue: number;
+  transfer_revenue: number;
+}
+
+/** GET /revenue/daily. orders hanya terisi bila include_orders=true. */
+export interface RevenueDailyResponse {
+  summary: RevenueDayStat;
+  orders: LaravelPage<Order> | null;
+}
+
+export type SalesGroupBy = 'day' | 'store' | 'category' | 'product' | 'payment_method';
+
+/** Baris breakdown /revenue/sales; kolom identitas tergantung group_by yang dipakai. */
+export interface SalesBreakdownRow {
+  total_orders: number;
+  total_items: number;
+  gross_sales: number;
+  discount: number;
+  net_sales: number;
+  date?: string;
+  store_id?: number;
+  store_name?: string;
+  category_id?: number | null;
+  category_name?: string | null;
+  product_id?: number;
+  product_name?: string;
+  sku?: string;
+  payment_method?: PaymentMethod;
+}
+
+export interface SalesReportResponse {
+  filters: {
+    from_date: string;
+    to_date: string;
+    store_id: number | null;
+    category_id: number | null;
+    product_id: number | null;
+    payment_method: PaymentMethod | null;
+    group_by: SalesGroupBy | null;
+  };
+  summary: {
+    total_orders: number;
+    total_items: number;
+    gross_sales: number;
+    discount: number;
+    net_sales: number;
+    cash_revenue: number;
+    qris_revenue: number;
+    transfer_revenue: number;
+  };
+  breakdown: SalesBreakdownRow[];
+  orders: LaravelPage<Order> | null;
+}
+
+/** Body POST /auth/register — membuat employee + user sekaligus. */
+export interface RegisterPayload {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  full_name: string;
+  join_date: string;
+  role_id: number;
+  store_id?: number | null;
+}
+
+/** Body POST/PUT /attendances (input manual admin, bukan clock-in). */
+export interface AttendancePayload {
+  employee_id: number;
+  store_id?: number | null;
+  date: string;
+  clock_in?: string | null;
+  clock_out?: string | null;
+  status: Attendance['status'];
+  location_coordinates?: string | null;
+  notes?: string | null;
+}
+
 export interface CashierSessionSummary {
   cashier_session_id: number;
   store_id: number;
@@ -475,6 +646,7 @@ export interface CashierSessionSummary {
   opening_cash: number | string;
   cash_sales: number | string;
   qris_sales: number | string;
+  transfer_sales: number | string;
   cash_in: number | string;
   cash_out: number | string;
   expected_cash: number | string;

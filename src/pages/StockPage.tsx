@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Download, X, Loader2 } from 'lucide-react';
 import { catalogApi, stockApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
+import { todayIso } from '../lib/date';
 import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { dateTime, decimal, toNumber, currency } from '../lib/format';
@@ -31,7 +32,6 @@ export function StockPage() {
   const [cardReferenceType, setCardReferenceType] = useState('');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Queries
   const products = useQuery({ queryKey: ['products', 'stock'], queryFn: () => catalogApi.products({ per_page: 200 }) });
   const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
   const transactions = useQuery({ queryKey: ['stock-transactions'], queryFn: () => stockApi.transactions({ per_page: 50 }) });
@@ -63,7 +63,6 @@ export function StockPage() {
   const productMap = useMemo(() => new Map((products.data?.data ?? []).map((product) => [product.id, product])), [products.data]);
   const lowStock = (products.data?.data ?? []).filter((product) => toNumber(product.current_stock) <= toNumber(product.minimum_stock));
 
-  // Mutations
   const mutation = useMutation({
     mutationFn: stockApi.createTransaction,
     onSuccess: () => {
@@ -100,7 +99,7 @@ export function StockPage() {
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `stock-report-${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute('download', `stock-report-${todayIso()}.csv`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
@@ -115,10 +114,10 @@ export function StockPage() {
   if (products.isLoading || transactions.isLoading || report.isLoading) return <LoadingState />;
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="grid gap-5">
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="order-2 grid min-w-0 gap-5 xl:order-1">
         <div>
-          <h1 className="text-2xl font-bold">Stock</h1>
+          <h1 className="text-xl font-bold text-ink sm:text-2xl">Stock</h1>
           <p className="text-sm text-muted">Transaksi stok, laporan stok, dan kartu riwayat stok.</p>
         </div>
 
@@ -136,7 +135,7 @@ export function StockPage() {
         )}
 
         {/* Stock Report Section */}
-        <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+        <div className="rounded-card border border-line bg-card p-4 shadow-card">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
             <div>
               <h2 className="font-bold text-lg">Stock Report</h2>
@@ -146,15 +145,14 @@ export function StockPage() {
               variant="secondary"
               onClick={handleExportCSV}
               disabled={isExporting}
-              className="flex items-center gap-2 hover:bg-slate-50 transition"
+              className="flex items-center gap-2 hover:bg-subtle transition"
             >
               <Download className="h-4 w-4" />
               {isExporting ? 'Exporting...' : 'Export CSV'}
             </Button>
           </div>
 
-          {/* Filters Bar */}
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 bg-slate-50/50 p-3 rounded-md border border-line/80">
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 bg-subtle/50 p-3 rounded-md border border-line/80">
             <Field label="Cari Produk">
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
@@ -213,7 +211,7 @@ export function StockPage() {
               <Button
                 variant="ghost"
                 onClick={() => setFilters({ search: '', category_id: '', product_id: '', low_stock_only: false })}
-                className="text-xs h-7 min-h-7 px-2 hover:bg-slate-100 transition"
+                className="text-xs h-7 min-h-7 px-2 hover:bg-subtle transition"
               >
                 Reset Filter
               </Button>
@@ -222,7 +220,7 @@ export function StockPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-muted font-semibold border-b border-line">
+              <thead className="bg-subtle text-xs uppercase text-muted font-semibold border-b border-line">
                 <tr>
                   <th className="px-4 py-3">Produk</th>
                   <th className="px-4 py-3">In</th>
@@ -233,7 +231,7 @@ export function StockPage() {
               </thead>
               <tbody>
                 {report.data?.map((row) => (
-                  <tr key={row.product_id} className="border-t border-line hover:bg-slate-50/40 transition">
+                  <tr key={row.product_id} className="border-t border-line hover:bg-subtle/40 transition">
                     <td className="px-4 py-3">
                       <button
                         onClick={() => setSelectedProductCard(row.product_id)}
@@ -260,13 +258,12 @@ export function StockPage() {
           </div>
         </div>
 
-        {/* Recent Transactions List */}
-        <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+        <div className="rounded-card border border-line bg-card p-4 shadow-card">
           <h2 className="mb-3 font-bold text-lg">Stock Transactions</h2>
           {transactions.data?.data.length === 0 && <EmptyState title="Belum ada transaksi stok" />}
           <div className="grid gap-3">
             {transactions.data?.data.map((tx) => (
-              <div key={tx.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line p-3 text-sm hover:bg-slate-50/50 transition">
+              <div key={tx.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line p-3 text-sm hover:bg-subtle/50 transition">
                 <div>
                   <p className="font-semibold">{productMap.get(tx.product_id)?.product_name ?? `Product #${tx.product_id}`}</p>
                   <p className="text-muted">{dateTime(tx.transaction_date)} - {tx.notes || 'Tanpa catatan'}</p>
@@ -283,8 +280,7 @@ export function StockPage() {
         </div>
       </div>
 
-      {/* Sidebar Form */}
-      <aside className="rounded-md border border-line bg-white p-4 shadow-sm xl:sticky xl:top-20 h-fit">
+      <aside className="order-1 xl:order-2 rounded-card border border-line bg-card p-4 shadow-card xl:sticky xl:top-4 h-fit">
         <h2 className="mb-4 text-lg font-bold">Tambah Stock Transaction</h2>
         <form onSubmit={submit} className="grid gap-3">
           <Field label="Product">
@@ -323,11 +319,9 @@ export function StockPage() {
         </form>
       </aside>
 
-      {/* Stock Card Modal */}
       {selectedProductCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-all duration-300">
-          <div className="relative flex flex-col w-full max-w-4xl rounded-lg border border-line bg-white p-6 shadow-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
+          <div className="relative flex flex-col w-full max-w-4xl rounded-lg border border-line bg-card p-6 shadow-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between border-b border-line pb-4">
               <div>
                 <h3 className="text-xl font-bold text-ink">
@@ -345,37 +339,35 @@ export function StockPage() {
                   setCardTransactionType('');
                   setCardReferenceType('');
                 }}
-                className="rounded-full p-1.5 text-muted hover:bg-slate-100 hover:text-ink transition"
+                className="rounded-full p-1.5 text-muted hover:bg-subtle hover:text-ink transition"
                 aria-label="Tutup"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto mt-4 pr-1">
-              {/* Product Info Summary cards */}
               {cardQuery.data?.product && (
                 <div className="mb-5 grid gap-4 grid-cols-2 sm:grid-cols-4">
-                  <div className="rounded-md border border-line bg-slate-50 p-3 text-center">
+                  <div className="rounded-md border border-line bg-subtle p-3 text-center">
                     <span className="text-xs text-muted block uppercase font-semibold">Stok Saat Ini</span>
                     <span className="text-lg font-bold block text-brand mt-0.5">
                       {decimal(cardQuery.data.product.current_stock)}
                     </span>
                   </div>
-                  <div className="rounded-md border border-line bg-slate-50 p-3 text-center">
+                  <div className="rounded-md border border-line bg-subtle p-3 text-center">
                     <span className="text-xs text-muted block uppercase font-semibold">Min. Stok</span>
                     <span className="text-lg font-bold block text-ink mt-0.5">
                       {decimal(cardQuery.data.product.minimum_stock)}
                     </span>
                   </div>
-                  <div className="rounded-md border border-line bg-slate-50 p-3 text-center">
+                  <div className="rounded-md border border-line bg-subtle p-3 text-center">
                     <span className="text-xs text-muted block uppercase font-semibold">Harga Beli</span>
                     <span className="text-lg font-bold block text-ink mt-0.5">
                       {currency(cardQuery.data.product.cost_price)}
                     </span>
                   </div>
-                  <div className="rounded-md border border-line bg-slate-50 p-3 text-center">
+                  <div className="rounded-md border border-line bg-subtle p-3 text-center">
                     <span className="text-xs text-muted block uppercase font-semibold">Status Stok</span>
                     <div className="mt-1">
                       {toNumber(cardQuery.data.product.current_stock) <= toNumber(cardQuery.data.product.minimum_stock) ? (
@@ -388,8 +380,7 @@ export function StockPage() {
                 </div>
               )}
 
-              {/* Filters for Stock Card */}
-              <div className="mb-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 rounded-md border border-line bg-slate-50/50 p-3">
+              <div className="mb-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 rounded-md border border-line bg-subtle/50 p-3">
                 <Field label="Dari Tanggal">
                   <Input
                     type="date"
@@ -444,10 +435,10 @@ export function StockPage() {
               )}
 
               {!cardQuery.isLoading && !cardQuery.error && cardQuery.data && (
-                <div className="border border-line rounded-md bg-white overflow-hidden">
+                <div className="border border-line rounded-md bg-card overflow-hidden">
                   <div className="overflow-x-auto max-h-[350px]">
                     <table className="w-full text-left text-sm">
-                      <thead className="sticky top-0 bg-slate-50 border-b border-line text-xs uppercase text-muted font-semibold z-10">
+                      <thead className="sticky top-0 bg-subtle border-b border-line text-xs uppercase text-muted font-semibold z-10">
                         <tr>
                           <th className="px-4 py-2.5">Tanggal</th>
                           <th className="px-4 py-2.5">Tipe</th>
@@ -459,7 +450,7 @@ export function StockPage() {
                       </thead>
                       <tbody>
                         {cardQuery.data.transactions.map((tx) => (
-                          <tr key={tx.id} className="border-t border-line hover:bg-slate-50/50 transition">
+                          <tr key={tx.id} className="border-t border-line hover:bg-subtle/50 transition">
                             <td className="px-4 py-3 text-xs whitespace-nowrap">
                               {dateTime(tx.transaction_date)}
                             </td>

@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, PackageX } from 'lucide-react';
 import { stockAlertsApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
-import { Badge } from '../components/ui';
+import { Badge, PageHeader, StatCard, TableShell, Td, Th, THead, TRow } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
-import { toNumber } from '../lib/format';
+import { decimal, toNumber } from '../lib/format';
 
 export function StockAlertsPage() {
   const alerts = useQuery({ queryKey: ['stock-alerts'], queryFn: () => stockAlertsApi.list({ per_page: 100 }) });
@@ -12,58 +12,47 @@ export function StockAlertsPage() {
 
   return (
     <section className="grid gap-5">
-      <div>
-        <h1 className="text-2xl font-bold">Low Stock Alerts</h1>
-        <p className="text-sm text-muted">Produk dengan stok kurang dari minimum stock.</p>
-      </div>
+      <PageHeader title="Stock Alerts" description="Produk yang stoknya berada di bawah minimum." />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-md border border-line bg-white p-4 shadow-sm">
-          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-amber-50 text-amber-700"><AlertTriangle className="h-5 w-5" /></div>
-          <p className="text-sm text-muted">Low stock items</p>
-          <p className="mt-1 text-2xl font-bold">{summary.data?.low_stock_count ?? '-'}</p>
-        </div>
-        <div className="rounded-md border border-line bg-white p-4 shadow-sm">
-          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-700"><PackageX className="h-5 w-5" /></div>
-          <p className="text-sm text-muted">Out of stock</p>
-          <p className="mt-1 text-2xl font-bold">{summary.data?.out_of_stock_count ?? '-'}</p>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <StatCard label="Stok menipis" value={summary.data?.low_stock_count ?? '-'} icon={AlertTriangle} tone="bg-amber-50 text-amber-700" />
+        <StatCard label="Stok habis" value={summary.data?.out_of_stock_count ?? '-'} icon={PackageX} tone="bg-red-50 text-red-700" />
       </div>
 
       {alerts.isLoading && <LoadingState />}
       {alerts.error && <ErrorState message={getApiError(alerts.error)} />}
       {!alerts.isLoading && !alerts.error && alerts.data?.length === 0 && (
-        <EmptyState title="Semua stok aman" description="Tidak ada produk yang berada di bawah minimum stock." />
+        <EmptyState title="Semua stok aman" description="Tidak ada produk di bawah minimum stock." />
       )}
 
       {alerts.data && alerts.data.length > 0 && (
-        <div className="overflow-x-auto rounded-md border border-line bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-muted">
-              <tr>
-                <th className="px-4 py-3">Produk</th>
-                <th className="px-4 py-3">Current stock</th>
-                <th className="px-4 py-3">Minimum stock</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {alerts.data.map((row) => {
-                const current = toNumber(row.current_stock);
-                const min = toNumber(row.minimum_stock);
-                const out = current <= 0;
-                return (
-                  <tr key={row.product_id} className="border-t border-line">
-                    <td className="px-4 py-3 font-semibold">{row.product_name ?? `#${row.product_id}`}</td>
-                    <td className="px-4 py-3">{current}</td>
-                    <td className="px-4 py-3">{min}</td>
-                    <td className="px-4 py-3"><Badge tone={out ? 'red' : 'amber'}>{out ? 'out of stock' : 'low stock'}</Badge></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <TableShell minWidth="min-w-[560px]">
+          <THead>
+            <tr>
+              <Th>Produk</Th>
+              <Th align="right">Stok saat ini</Th>
+              <Th align="right">Minimum</Th>
+              <Th>Status</Th>
+            </tr>
+          </THead>
+          <tbody>
+            {alerts.data.map((row) => {
+              const current = toNumber(row.current_stock);
+              const isOutOfStock = current <= 0;
+
+              return (
+                <TRow key={row.product_id}>
+                  <Td className="font-semibold">{row.product_name ?? `Produk #${row.product_id}`}</Td>
+                  <Td align="right">{decimal(current)}</Td>
+                  <Td align="right">{decimal(row.minimum_stock)}</Td>
+                  <Td>
+                    <Badge tone={isOutOfStock ? 'red' : 'amber'}>{isOutOfStock ? 'stok habis' : 'stok menipis'}</Badge>
+                  </Td>
+                </TRow>
+              );
+            })}
+          </tbody>
+        </TableShell>
       )}
     </section>
   );

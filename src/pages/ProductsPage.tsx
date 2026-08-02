@@ -22,7 +22,6 @@ export function ProductsPage() {
   const queryClient = useQueryClient();
   const { storeId } = useAuth();
 
-  // Queries
   const products = useQuery({ 
     queryKey: ['products', search], 
     queryFn: () => catalogApi.products({ search: search || undefined, per_page: 100 }) 
@@ -36,7 +35,6 @@ export function ProductsPage() {
 
   const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
 
-  // Mutations
   const save = useMutation({ 
     mutationFn: (payload: Partial<Product>) => editingId ? catalogApi.updateProduct(editingId, payload) : catalogApi.createProduct(payload), 
     onSuccess: () => { 
@@ -100,14 +98,13 @@ export function ProductsPage() {
   };
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="min-w-0 grid gap-4">
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="order-2 grid min-w-0 gap-4 xl:order-1">
         <div>
-          <h1 className="text-2xl font-bold">Products</h1>
+          <h1 className="text-xl font-bold text-ink sm:text-2xl">Products</h1>
           <p className="text-sm text-muted">Kelola katalog produk, restore produk terhapus, dan master data.</p>
         </div>
 
-        {/* View Tabs */}
         <div className="flex border-b border-line">
           <button
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition ${tab === 'active' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}
@@ -132,10 +129,10 @@ export function ProductsPage() {
             {!products.isLoading && (products.data?.data.length ?? 0) === 0 && <EmptyState title="Produk kosong" />}
             
             {!products.isLoading && products.data && products.data.data.length > 0 && (
-              <div className="overflow-hidden rounded-md border border-line bg-white shadow-sm">
+              <div className="overflow-hidden rounded-card border border-line bg-card shadow-card">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[920px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-muted font-semibold border-b border-line">
+                    <thead className="bg-subtle text-xs uppercase text-muted font-semibold border-b border-line">
                       <tr>
                         <th className="px-4 py-3">Produk</th>
                         <th className="px-4 py-3">SKU</th>
@@ -147,7 +144,7 @@ export function ProductsPage() {
                     </thead>
                     <tbody>
                       {products.data.data.map((product) => (
-                        <tr key={product.id} className="border-t border-line hover:bg-slate-50/40 transition">
+                        <tr key={product.id} className="border-t border-line hover:bg-subtle/40 transition">
                           <td className="px-4 py-3 font-semibold text-slate-800">{product.product_name}</td>
                           <td className="px-4 py-3 text-muted">{product.sku}</td>
                           <td className="px-4 py-3">{decimal(product.current_stock)} {product.unit_of_measure}</td>
@@ -182,10 +179,10 @@ export function ProductsPage() {
             )}
 
             {!deletedProducts.isLoading && deletedProducts.data && deletedProducts.data.data.length > 0 && (
-              <div className="overflow-hidden rounded-md border border-line bg-white shadow-sm">
+              <div className="overflow-hidden rounded-card border border-line bg-card shadow-card">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[920px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-muted font-semibold border-b border-line">
+                    <thead className="bg-subtle text-xs uppercase text-muted font-semibold border-b border-line">
                       <tr>
                         <th className="px-4 py-3">Produk</th>
                         <th className="px-4 py-3">SKU</th>
@@ -196,7 +193,7 @@ export function ProductsPage() {
                     </thead>
                     <tbody>
                       {deletedProducts.data.data.map((product) => (
-                        <tr key={product.id} className="border-t border-line hover:bg-slate-50/40 transition">
+                        <tr key={product.id} className="border-t border-line hover:bg-subtle/40 transition">
                           <td className="px-4 py-3 font-semibold text-slate-500 line-through">{product.product_name}</td>
                           <td className="px-4 py-3 text-muted">{product.sku}</td>
                           <td className="px-4 py-3 text-muted">{decimal(product.current_stock)} {product.unit_of_measure}</td>
@@ -222,7 +219,7 @@ export function ProductsPage() {
         )}
       </div>
 
-      <aside className="rounded-md border border-line bg-white p-4 shadow-sm xl:sticky xl:top-20 h-fit">
+      <aside className="order-1 xl:order-2 rounded-card border border-line bg-card p-4 shadow-card xl:sticky xl:top-4 h-fit">
         {tab === 'active' ? (
           <>
             <h2 className="mb-4 text-lg font-bold">{editingId ? 'Edit Product' : 'Create Product'}</h2>

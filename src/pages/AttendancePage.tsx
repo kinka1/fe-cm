@@ -7,6 +7,55 @@ import { Badge, Button, Field, Input, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
+import { initials, mediaUrl } from '../lib/media';
+
+/**
+ * Foto absensi adalah bukti kehadiran. Kalau file-nya hilang atau gagal dimuat,
+ * tampilkan status apa adanya — jangan pernah menggantinya dengan foto orang lain,
+ * karena itu memalsukan bukti absensi.
+ */
+function AttendancePhoto({ url, employeeName, onZoom }: { url: string | null; employeeName?: string | null; onZoom: (url: string) => void }) {
+  const [broken, setBroken] = useState(false);
+
+  if (!url) return <span className="text-xs text-muted">Tanpa foto</span>;
+
+  if (broken) {
+    return <span className="inline-flex rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">Foto tidak tersedia</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onZoom(url)}
+      className="block h-12 w-12 overflow-hidden rounded-md border border-line bg-slate-100 transition hover:scale-105 cursor-zoom-in"
+      title={`Foto check-in ${employeeName ?? 'karyawan'}`}
+    >
+      <img src={url} alt={`Foto check-in ${employeeName ?? 'karyawan'}`} className="h-full w-full object-cover" onError={() => setBroken(true)} />
+    </button>
+  );
+}
+
+/** Avatar dari potret karyawan; kalau belum ada, pakai inisial — bukan foto stok. */
+function EmployeeAvatar({ url, name }: { url: string | null; name?: string | null }) {
+  const [broken, setBroken] = useState(false);
+
+  if (!url || broken) {
+    return (
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-100 text-xs font-bold text-teal-800" aria-hidden>
+        {initials(name)}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={`Potret ${name ?? 'karyawan'}`}
+      className="h-9 w-9 shrink-0 rounded-full border border-line object-cover"
+      onError={() => setBroken(true)}
+    />
+  );
+}
 
 export function AttendancePage() {
   const { user, role } = useAuth();
@@ -15,7 +64,6 @@ export function AttendancePage() {
   const [coordinates, setCoordinates] = useState('');
   const [isLocating, setIsLocating] = useState(false);
 
-  // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
   const [capturedPhotoBlob, setCapturedPhotoBlob] = useState<Blob | null>(null);
@@ -27,7 +75,6 @@ export function AttendancePage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  // Filter logs: cashier only sees their own log, admin sees all
   const logs = useQuery({ 
     queryKey: ['attendances', role !== 'admin' ? user?.employee_id : null], 
     queryFn: () => attendanceApi.list(
@@ -37,7 +84,6 @@ export function AttendancePage() {
     ) 
   });
 
-  // Get current geolocation
   const fetchLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolokasi tidak didukung oleh browser Anda');
@@ -60,11 +106,17 @@ export function AttendancePage() {
     );
   };
 
-  // Start webcam stream
-  const startCamera = async () => {
+  // Buang hasil potret sebelumnya beserta object URL-nya.
+  const clearCapturedPhoto = () => {
     if (capturedPhotoUrl) {
-      handleRetake();
+      URL.revokeObjectURL(capturedPhotoUrl);
     }
+    setCapturedPhotoUrl(null);
+    setCapturedPhotoBlob(null);
+  };
+
+  const startCamera = async () => {
+    clearCapturedPhoto();
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -82,7 +134,6 @@ export function AttendancePage() {
     }
   };
 
-  // Stop webcam stream
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -91,7 +142,6 @@ export function AttendancePage() {
     setIsCameraActive(false);
   };
 
-  // Trigger camera start on action type change to Check In (only for non-admin)
   useEffect(() => {
     if (role !== 'admin' && actionType === 'check-in') {
       startCamera();
@@ -105,7 +155,6 @@ export function AttendancePage() {
     };
   }, [actionType, role]);
 
-  // Capture image frame from video
   const handleCapture = () => {
     if (!videoRef.current) return;
 
@@ -133,15 +182,10 @@ export function AttendancePage() {
   };
 
   const handleRetake = () => {
-    if (capturedPhotoUrl) {
-      URL.revokeObjectURL(capturedPhotoUrl);
-    }
-    setCapturedPhotoUrl(null);
-    setCapturedPhotoBlob(null);
+    clearCapturedPhoto();
     startCamera();
   };
 
-  // Mutations
   const checkInMutation = useMutation({
     mutationFn: attendanceApi.checkIn,
     onSuccess: () => {
@@ -200,24 +244,22 @@ export function AttendancePage() {
 
   return (
     <section className={`grid gap-5 ${role === 'admin' ? 'grid-cols-1' : 'xl:grid-cols-[360px_1fr]'}`}>
-      {/* Attendance Form (Only visible to non-admin / cashier / employees) */}
       {role !== 'admin' && (
-        <aside className="rounded-md border border-line bg-white p-4 shadow-sm h-fit">
+        <aside className="rounded-md border border-line bg-card p-4 shadow-card h-fit">
           <h2 className="text-xl font-bold text-ink">Absensi Karyawan</h2>
           <p className="text-xs text-muted mb-4">Lakukan Check-In dan Check-Out kehadiran Anda hari ini.</p>
 
-          {/* Tab checkin/checkout */}
           <div className="mb-4 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-sm font-semibold transition ${actionType === 'check-in' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+              className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-sm font-semibold transition ${actionType === 'check-in' ? 'bg-card text-ink shadow-card' : 'text-muted hover:text-ink'}`}
               onClick={() => setActionType('check-in')}
             >
               <CheckCircle className="h-4 w-4 text-emerald-600" /> Check In
             </button>
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-sm font-semibold transition ${actionType === 'check-out' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+              className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-sm font-semibold transition ${actionType === 'check-out' ? 'bg-card text-ink shadow-card' : 'text-muted hover:text-ink'}`}
               onClick={() => setActionType('check-out')}
             >
               <LogOut className="h-4 w-4 text-red-600" /> Check Out
@@ -225,8 +267,7 @@ export function AttendancePage() {
           </div>
 
           <form onSubmit={submit} className="grid gap-4">
-            {/* Display logged-in employee name directly without selection dropdown */}
-            <div className="rounded-md border border-line bg-slate-50 p-3 text-sm">
+            <div className="rounded-md border border-line bg-subtle p-3 text-sm">
               <span className="text-xs text-muted block font-semibold uppercase">Nama Karyawan</span>
               <span className="text-base font-bold text-ink mt-0.5 block">{user?.name || 'Operator'}</span>
               <span className="text-xs text-muted">Employee ID: {user?.employee_id ?? 'belum diset'}</span>
@@ -234,12 +275,10 @@ export function AttendancePage() {
 
             {actionType === 'check-in' && (
               <>
-                {/* Photo Input (Webcam Only) */}
-                <div className="grid gap-2 border border-line rounded-md p-3 bg-slate-50">
+                <div className="grid gap-2 border border-line rounded-md p-3 bg-subtle">
                   <span className="text-xs font-bold text-slate-700 block">Ambil Foto Wajah</span>
 
                   <div className="relative aspect-video w-full overflow-hidden rounded-md border border-line bg-black flex items-center justify-center">
-                    {/* Live Preview */}
                     {isCameraActive && !capturedPhotoUrl && (
                       <video
                         ref={videoRef}
@@ -250,7 +289,6 @@ export function AttendancePage() {
                       />
                     )}
 
-                    {/* Captured image output */}
                     {capturedPhotoUrl && (
                       <img
                         src={capturedPhotoUrl}
@@ -259,7 +297,6 @@ export function AttendancePage() {
                       />
                     )}
 
-                    {/* Camera Offline Placeholder */}
                     {!isCameraActive && !capturedPhotoUrl && (
                       <div className="text-center p-4">
                         <Camera className="mx-auto h-8 w-8 text-slate-600 animate-pulse" />
@@ -270,7 +307,6 @@ export function AttendancePage() {
                       </div>
                     )}
 
-                    {/* Actions button overlaid */}
                     {isCameraActive && !capturedPhotoUrl && (
                       <div className="absolute bottom-3 left-0 right-0 flex justify-center">
                         <Button
@@ -296,8 +332,7 @@ export function AttendancePage() {
                   </div>
                 </div>
 
-                {/* Geolocation Section */}
-                <div className="grid gap-2 border border-line rounded-md p-3 bg-slate-50">
+                <div className="grid gap-2 border border-line rounded-md p-3 bg-subtle">
                   <span className="text-xs font-bold text-slate-700 block">Koordinat Geolokasi</span>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -354,8 +389,7 @@ export function AttendancePage() {
         </aside>
       )}
 
-      {/* Attendance Log Table */}
-      <div className="rounded-md border border-line bg-white p-4 shadow-sm min-w-0">
+      <div className="rounded-md border border-line bg-card p-4 shadow-card min-w-0">
         <h2 className="text-xl font-bold text-ink">
           {role === 'admin' ? 'Monitoring Absensi Karyawan (Admin)' : 'Riwayat Absensi'}
         </h2>
@@ -374,7 +408,7 @@ export function AttendancePage() {
         {!logs.isLoading && logs.data && logs.data.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-line">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-muted font-semibold border-b border-line">
+              <thead className="bg-subtle text-xs uppercase text-muted font-semibold border-b border-line">
                 <tr>
                   <th className="px-4 py-3">Tanggal</th>
                   <th className="px-4 py-3">Karyawan</th>
@@ -388,11 +422,19 @@ export function AttendancePage() {
               </thead>
               <tbody>
                 {logs.data.map((log) => (
-                  <tr key={log.id} className="border-t border-line hover:bg-slate-50/40 transition">
+                  <tr key={log.id} className="border-t border-line hover:bg-subtle/40 transition">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{log.date}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-semibold text-ink">{log.employee?.full_name ?? `Karyawan #${log.employee_id}`}</p>
-                      <p className="text-xs text-muted">{log.employee?.email}</p>
+                      <div className="flex items-center gap-3">
+                        <EmployeeAvatar
+                          url={mediaUrl(log.employee?.photo_url) ?? mediaUrl(log.photo_url)}
+                          name={log.employee?.full_name}
+                        />
+                        <div>
+                          <p className="font-semibold text-ink">{log.employee?.full_name ?? `Karyawan #${log.employee_id}`}</p>
+                          <p className="text-xs text-muted">{log.employee?.email}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 font-semibold text-emerald-700 whitespace-nowrap">
                       {log.clock_in ? log.clock_in.substring(0, 5) : '-'}
@@ -401,28 +443,11 @@ export function AttendancePage() {
                       {log.clock_out ? log.clock_out.substring(0, 5) : '-'}
                     </td>
                     <td className="px-4 py-3">
-                      {log.photo_url ? (
-                        <button
-                          onClick={() => {
-                            const photoUrl = log.photo_url?.startsWith('http') 
-                              ? log.photo_url 
-                              : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}${log.photo_url}`;
-                            setActiveLightboxUrl(photoUrl);
-                          }}
-                          className="h-10 w-14 overflow-hidden rounded border border-line bg-slate-100 block transition hover:scale-105 cursor-zoom-in"
-                        >
-                          <img
-                            src={log.photo_url?.startsWith('http') ? log.photo_url : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}${log.photo_url}`}
-                            alt="Wajah"
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=100';
-                            }}
-                          />
-                        </button>
-                      ) : (
-                        <span className="text-xs text-muted">-</span>
-                      )}
+                      <AttendancePhoto
+                        url={mediaUrl(log.photo_url)}
+                        employeeName={log.employee?.full_name}
+                        onZoom={setActiveLightboxUrl}
+                      />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {log.location_coordinates ? (
@@ -454,7 +479,6 @@ export function AttendancePage() {
         )}
       </div>
 
-      {/* Lightbox photo Modal */}
       {activeLightboxUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm transition-all duration-300">
           <div className="relative max-w-2xl max-h-[85vh] overflow-hidden rounded-md border border-white/10 bg-black p-1 shadow-2xl animate-in fade-in zoom-in-95 duration-200">

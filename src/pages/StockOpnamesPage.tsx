@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Plus, Send } from 'lucide-react';
 import { catalogApi, stockOpnamesApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
+import { todayIso as today } from '../lib/date';
 import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
@@ -16,8 +17,6 @@ const statusTone: Record<StockOpnameStatus, 'slate' | 'amber' | 'green' | 'red'>
   approved: 'green',
   cancelled: 'red',
 };
-
-const today = () => new Date().toISOString().slice(0, 10);
 
 export function StockOpnamesPage() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -106,11 +105,11 @@ export function StockOpnamesPage() {
   const isDraft = selected?.status === 'draft';
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="grid gap-4">
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="order-2 grid min-w-0 gap-4 xl:order-1">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Stock Opname</h1>
+            <h1 className="text-xl font-bold text-ink sm:text-2xl">Stock Opname</h1>
             <p className="text-sm text-muted">Hitung stok fisik dan sesuaikan dengan stok sistem.</p>
           </div>
           <Field label="Filter status">
@@ -135,7 +134,7 @@ export function StockOpnamesPage() {
             <button
               key={opname.id}
               onClick={() => setSelectedId(opname.id)}
-              className={`rounded-md border bg-white p-4 text-left transition ${selectedId === opname.id ? 'border-brand ring-2 ring-teal-100' : 'border-line hover:bg-slate-50'}`}
+              className={`rounded-md border bg-card p-4 text-left transition ${selectedId === opname.id ? 'border-brand ring-2 ring-teal-100' : 'border-line hover:bg-subtle'}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -150,7 +149,7 @@ export function StockOpnamesPage() {
         </div>
 
         {selected && (
-          <div className="rounded-md border border-line bg-white p-4">
+          <div className="rounded-card border border-line bg-card p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold">Detail {selected.opname_number}</h2>
               <div className="flex gap-2">
@@ -205,8 +204,8 @@ export function StockOpnamesPage() {
         )}
       </div>
 
-      <aside className="grid gap-4 self-start xl:sticky xl:top-20">
-        <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+      <aside className="order-1 xl:order-2 grid gap-4 self-start xl:sticky xl:top-4">
+        <div className="rounded-card border border-line bg-card p-4 shadow-card">
           <h2 className="mb-4 text-lg font-bold">Opname Baru</h2>
           <form
             className="grid gap-3"
@@ -222,7 +221,7 @@ export function StockOpnamesPage() {
           </form>
         </div>
 
-        <div className="rounded-md border border-line bg-white p-4 shadow-sm">
+        <div className="rounded-card border border-line bg-card p-4 shadow-card">
           <h2 className="mb-1 text-lg font-bold">Tambah Item</h2>
           <p className="mb-4 text-xs text-muted">
             {selected
