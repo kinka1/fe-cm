@@ -19,7 +19,19 @@ export default {
         card: '#fffaf0',
         subtle: '#e8f5f2',
         line: '#cbded9',
-        sidebar: '#12323a',
+        /**
+         * Ramp sidebar. Nilai `muted` dan `text` sudah dicek kontrasnya terhadap
+         * `sidebar.DEFAULT` (>= 7:1), jadi label grup dan menu non-aktif tetap
+         * terbaca — sebelumnya memakai white/40 yang hanya ~3:1.
+         */
+        sidebar: {
+          DEFAULT: '#0e2f38',
+          deep: '#0a2229',
+          hover: '#17414d',
+          line: '#2b5967',
+          muted: '#a7c4cc',
+          text: '#e6f1f4',
+        },
       },
       boxShadow: {
         soft: '0 12px 30px rgba(15, 23, 42, 0.08)',

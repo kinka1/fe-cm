@@ -114,21 +114,21 @@ export function AppLayout() {
     <div className="admin-shell h-dvh overflow-hidden text-ink lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 flex h-dvh w-72 max-w-[85vw] flex-col border-r border-white/10 bg-sidebar text-white shadow-2xl transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-40 flex h-dvh w-72 max-w-[85vw] flex-col border-r border-sidebar-line bg-sidebar text-sidebar-text shadow-2xl transition-transform duration-200',
           'lg:static lg:w-auto lg:max-w-none lg:translate-x-0',
           menuOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-line bg-sidebar-deep px-5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent text-accent-ink">
             <BarChart3 className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-bold leading-tight">POS Management</p>
-            <p className="truncate text-xs text-white/70">{ROLE_LABEL[role]} workspace</p>
+            <p className="truncate font-bold leading-tight text-white">POS Management</p>
+            <p className="truncate text-xs text-sidebar-muted">{ROLE_LABEL[role]} workspace</p>
           </div>
           <button
-            className="ml-auto rounded-md p-2 text-white/70 hover:bg-white/10 hover:text-white lg:hidden"
+            className="ml-auto rounded-md p-2 text-sidebar-muted hover:bg-sidebar-hover hover:text-white lg:hidden"
             onClick={() => setMenuOpen(false)}
             aria-label="Tutup menu"
           >
@@ -138,17 +138,21 @@ export function AppLayout() {
 
         {/* Pemilih toko ikut di sidebar karena header tidak muat di layar ponsel. */}
         {storePicker && (
-          <div className="border-b border-white/10 px-3 py-3 sm:hidden">
-            <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-white/50">Toko aktif</p>
+          <div className="border-b border-sidebar-line px-3 py-3 sm:hidden">
+            <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">Toko aktif</p>
             {storePicker}
           </div>
         )}
 
         <nav className="scrollbar-none min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
           {groups.map((group) => (
-            <div key={group.title} className="mb-4 last:mb-0">
-              <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/40">{group.title}</p>
-              <div className="grid gap-0.5">
+            <div key={group.title} className="mb-5 last:mb-0">
+              {/* Garis tipis di kanan judul memisahkan grup tanpa menambah tinggi baris. */}
+              <p className="mb-2 flex items-center gap-2 px-3 text-[11px] font-bold uppercase tracking-wider text-sidebar-muted">
+                <span className="shrink-0">{group.title}</span>
+                <span className="h-px flex-1 bg-sidebar-line" aria-hidden="true" />
+              </p>
+              <div className="grid gap-1">
                 {group.items.map((item) => (
                   <NavLink
                     key={item.to}
@@ -158,8 +162,11 @@ export function AppLayout() {
                     onClick={() => setMenuOpen(false)}
                     className={({ isActive }) =>
                       clsx(
-                        'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition',
-                        isActive ? 'bg-accent text-accent-ink shadow-lg shadow-amber-950/20' : 'text-white/75 hover:bg-white/10 hover:text-white',
+                        // Border kiri transparan selalu ada agar label tidak bergeser saat menu aktif.
+                        'flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2.5 text-sm font-semibold transition',
+                        isActive
+                          ? 'border-l-accent bg-accent text-accent-ink shadow-md shadow-black/30'
+                          : 'border-l-transparent text-sidebar-text hover:border-l-accent/60 hover:bg-sidebar-hover hover:text-white',
                       )
                     }
                   >
@@ -173,7 +180,7 @@ export function AppLayout() {
         </nav>
       </aside>
 
-      {menuOpen && <button className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Tutup menu" />}
+      {menuOpen && <button className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Tutup menu" />}
 
       <div className="flex h-full min-w-0 flex-col overflow-hidden">
         {/* Header berada di luar area scroll, jadi selalu terlihat tanpa perlu sticky. */}

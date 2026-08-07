@@ -82,13 +82,58 @@ export const cartApi = {
  */
 const asFlag = (value?: boolean) => (value === undefined ? undefined : value ? 1 : 0);
 
+interface SalesReportParams {
+  from_date: string;
+  to_date: string;
+  store_id?: number | null;
+  category_id?: number | null;
+  product_id?: number | null;
+  payment_method?: string | null;
+  group_by?: string | null;
+  include_orders?: boolean;
+  per_page?: number;
+  page?: number;
+}
+
+const fetchSalesReport = async ({ include_orders, ...params }: SalesReportParams) =>
+  unwrap<SalesReportResponse>(await api.get('/revenue/sales', { params: { ...params, include_orders: asFlag(include_orders) } }));
+
+/** Batas per_page yang diterima backend (lihat validasi RevenueReportController). */
+const SALES_PAGE_SIZE = 100;
+
 /** Laporan pendapatan; semua endpoint hanya menghitung order dengan payment_status = paid. */
 export const revenueApi = {
   summary: async (params: { from_date: string; to_date: string; store_id?: number | null; payment_method?: string | null }) => unwrap<RevenueSummary>(await api.get('/revenue/summary', { params })),
   daily: async ({ include_orders, ...params }: { date?: string; store_id?: number | null; payment_method?: string | null; include_orders?: boolean; per_page?: number }) =>
     unwrap<RevenueDailyResponse>(await api.get('/revenue/daily', { params: { ...params, include_orders: asFlag(include_orders) } })),
-  sales: async ({ include_orders, ...params }: { from_date: string; to_date: string; store_id?: number | null; category_id?: number | null; product_id?: number | null; payment_method?: string | null; group_by?: string | null; include_orders?: boolean; per_page?: number }) =>
-    unwrap<SalesReportResponse>(await api.get('/revenue/sales', { params: { ...params, include_orders: asFlag(include_orders) } })),
+  sales: fetchSalesReport,
+
+  /**
+   * Seluruh order paid pada rentang filter, lengkap dengan `details.product` dan
+   * `payment` (backend sudah eager-load keduanya saat include_orders aktif).
+   *
+   * Backend mengunci per_page di 100, jadi paginator ditelusuri sampai habis.
+   * `maxOrders` mencegah export menarik data tanpa batas pada rentang lebar;
+   * bila tersentuh, `truncated` bernilai true supaya pemanggil bisa memberi tahu.
+   */
+  salesOrders: async (params: Omit<SalesReportParams, 'include_orders' | 'per_page' | 'page'>, maxOrders = 5000): Promise<{ orders: Order[]; total: number; truncated: boolean }> => {
+    const orders: Order[] = [];
+    let total = 0;
+    let page = 1;
+
+    for (;;) {
+      const paginator = (await fetchSalesReport({ ...params, include_orders: true, per_page: SALES_PAGE_SIZE, page })).orders;
+      if (!paginator) break;
+
+      orders.push(...paginator.data);
+      total = paginator.total;
+
+      if (page >= paginator.last_page || orders.length >= maxOrders) break;
+      page += 1;
+    }
+
+    return { orders, total, truncated: orders.length < total };
+  },
 };
 
 export const stockApi = {

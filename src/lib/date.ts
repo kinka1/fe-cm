@@ -19,6 +19,13 @@ export function todayIso(): string {
   return toDateInput(new Date());
 }
 
+/** Jam lokal `HHmmss`; membedakan nama file export yang periodenya sama. */
+export function clockStamp(date: Date): string {
+  const pad = (value: number) => `${value}`.padStart(2, '0');
+
+  return `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
 /** Tanggal 1 pada bulan berjalan; dipakai sebagai awal periode laporan. */
 export function firstDayOfMonthIso(): string {
   const now = new Date();
