@@ -1,4 +1,4 @@
-import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, IngredientImportResult, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -145,6 +145,14 @@ export const stockApi = {
     const response = await api.get('/stock-report/export', { params, responseType: 'blob' });
     return response.data;
   },
+};
+
+export const ingredientsApi = {
+  downloadImportTemplate: async () => {
+    const response = await api.get('/ingredients/import-template.xlsx', { responseType: 'blob' });
+    return response.data;
+  },
+  import: async (payload: FormData) => unwrap<IngredientImportResult>(await api.post('/ingredients/import', payload)),
 };
 
 export const employeesApi = {
