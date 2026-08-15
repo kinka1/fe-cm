@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Download, X, Loader2 } from 'lucide-react';
-import { catalogApi, stockApi } from '../api/endpoints';
+import { Plus, Search, Download, X, Loader2, Upload } from 'lucide-react';
+import { catalogApi, ingredientsApi, stockApi, storesApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
 import { todayIso } from '../lib/date';
 import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
@@ -9,6 +9,10 @@ import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { dateTime, decimal, toNumber, currency } from '../lib/format';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
+import type { IngredientImportResult } from '../types/api';
+
+const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_IMPORT_EXTENSIONS = ['xlsx', 'csv', 'txt'];
 
 export function StockPage() {
   const [form, setForm] = useState({ product_id: '', transaction_type: 'in', quantity: '', reference_type: 'purchase', notes: '' });
@@ -31,9 +35,15 @@ export function StockPage() {
   const [cardTransactionType, setCardTransactionType] = useState('');
   const [cardReferenceType, setCardReferenceType] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importStoreId, setImportStoreId] = useState('');
+  const [importCategoryId, setImportCategoryId] = useState('');
+  const [importResult, setImportResult] = useState<IngredientImportResult | null>(null);
 
   const products = useQuery({ queryKey: ['products', 'stock'], queryFn: () => catalogApi.products({ per_page: 200 }) });
   const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const stores = useQuery({ queryKey: ['stores', 'ingredient-import'], queryFn: () => storesApi.list() });
   const transactions = useQuery({ queryKey: ['stock-transactions'], queryFn: () => stockApi.transactions({ per_page: 50 }) });
   
   const report = useQuery({
@@ -75,6 +85,20 @@ export function StockPage() {
     onError: (error) => toast.error(getApiError(error))
   });
 
+  const importMutation = useMutation({
+    mutationFn: (payload: FormData) => ingredientsApi.import(payload),
+    onSuccess: (result) => {
+      setImportResult(result);
+      setImportFile(null);
+      toast.success(`Import selesai: ${result.created} dibuat, ${result.updated} diperbarui, ${result.skipped} dilewati`);
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-report'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-transactions'] });
+    },
+    onError: (error) => toast.error(getApiError(error)),
+  });
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     mutation.mutate({
@@ -109,6 +133,68 @@ export function StockPage() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleDownloadTemplate = async () => {
+    setIsDownloadingTemplate(true);
+    try {
+      const blob = await ingredientsApi.downloadImportTemplate();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'ingredient-import-template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Template import ingredient berhasil didownload');
+    } catch (error) {
+      toast.error('Gagal download template: ' + getApiError(error));
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setImportResult(null);
+
+    if (!file) {
+      setImportFile(null);
+      return;
+    }
+
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!ALLOWED_IMPORT_EXTENSIONS.includes(extension)) {
+      toast.error('Format file harus .xlsx, .csv, atau .txt');
+      event.target.value = '';
+      setImportFile(null);
+      return;
+    }
+
+    if (file.size > MAX_IMPORT_FILE_SIZE) {
+      toast.error('Ukuran file maksimal 5MB');
+      event.target.value = '';
+      setImportFile(null);
+      return;
+    }
+
+    setImportFile(file);
+  };
+
+  const submitImport = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!importFile) {
+      toast.error('Pilih file import terlebih dahulu');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', importFile);
+    if (importStoreId) formData.append('store_id', importStoreId);
+    if (importCategoryId) formData.append('category_id', importCategoryId);
+    importMutation.mutate(formData);
   };
 
   if (products.isLoading || transactions.isLoading || report.isLoading) return <LoadingState />;
@@ -280,43 +366,123 @@ export function StockPage() {
         </div>
       </div>
 
-      <aside className="order-1 xl:order-2 rounded-card border border-line bg-card p-4 shadow-card xl:sticky xl:top-4 h-fit">
-        <h2 className="mb-4 text-lg font-bold">Tambah Stock Transaction</h2>
-        <form onSubmit={submit} className="grid gap-3">
-          <Field label="Product">
-            <Select value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} required>
-              <option value="">Pilih produk</option>
-              {products.data?.data.map((product) => (
-                <option key={product.id} value={product.id}>{product.product_name}</option>
-              ))}
-            </Select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Type">
-              <Select value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value, reference_type: e.target.value === 'adjustment' ? 'adjustment' : form.reference_type })}>
-                <option value="in">In</option>
-                <option value="out">Out</option>
-                <option value="adjustment">Adjustment</option>
-              </Select>
-            </Field>
-            <Field label="Reference">
-              <Select value={form.reference_type} onChange={(e) => setForm({ ...form, reference_type: e.target.value })}>
-                <option value="purchase">Purchase</option>
-                <option value="sale">Sale</option>
-                <option value="adjustment">Adjustment</option>
-              </Select>
-            </Field>
+      <aside className="order-1 grid gap-4 xl:order-2 xl:sticky xl:top-4 h-fit">
+        <div className="rounded-card border border-line bg-card p-4 shadow-card">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">Import Ingredient</h2>
+              <p className="mt-1 text-xs text-muted">Upload file Excel/CSV untuk membuat atau memperbarui bahan baku.</p>
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={handleDownloadTemplate} loading={isDownloadingTemplate}>
+              <Download className="h-4 w-4" />Template
+            </Button>
           </div>
-          <Field label="Quantity">
-            <Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required />
-          </Field>
-          <Field label="Notes">
-            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </Field>
-          <Button disabled={mutation.isPending} className="w-full">
-            <Plus className="h-4 w-4" />Save Transaction
-          </Button>
-        </form>
+
+          <form onSubmit={submitImport} className="grid gap-3">
+            <Field label="File" hint="Format .xlsx, .csv, atau .txt. Maksimal 5MB." required>
+              <Input type="file" accept=".xlsx,.csv,.txt" onChange={handleImportFileChange} />
+            </Field>
+
+            {importFile && (
+              <div className="rounded-md border border-line bg-subtle/60 px-3 py-2 text-xs text-muted">
+                <span className="font-semibold text-ink">{importFile.name}</span> - {(importFile.size / 1024).toFixed(1)} KB
+              </div>
+            )}
+
+            <Field label="Store Override" hint="Kosongkan jika file memakai kolom store_code.">
+              <Select value={importStoreId} onChange={(e) => setImportStoreId(e.target.value)} disabled={stores.isLoading}>
+                <option value="">Ikuti store_code Excel</option>
+                {stores.data?.map((store) => (
+                  <option key={store.id} value={store.id}>{store.store_name} ({store.code})</option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label="Category Override" hint="Kosongkan jika file memakai category_name atau default Bahan Baku.">
+              <Select value={importCategoryId} onChange={(e) => setImportCategoryId(e.target.value)}>
+                <option value="">Ikuti category_name Excel</option>
+                {categories.data?.map((category) => (
+                  <option key={category.id} value={category.id}>{category.category_name}</option>
+                ))}
+              </Select>
+            </Field>
+
+            <Button type="submit" className="w-full" loading={importMutation.isPending} disabled={!importFile}>
+              <Upload className="h-4 w-4" />Import Ingredient
+            </Button>
+          </form>
+
+          {importResult && (
+            <div className="mt-4 grid gap-3 border-t border-line pt-4">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-md bg-emerald-50 p-2 text-emerald-700"><strong className="block text-base">{importResult.created}</strong>Created</div>
+                <div className="rounded-md bg-sky-50 p-2 text-sky-700"><strong className="block text-base">{importResult.updated}</strong>Updated</div>
+                <div className="rounded-md bg-amber-50 p-2 text-amber-800"><strong className="block text-base">{importResult.skipped}</strong>Skipped</div>
+              </div>
+
+              {importResult.errors.length > 0 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <p className="mb-2 text-xs font-bold uppercase text-amber-900">Error Rows</p>
+                  <div className="max-h-40 overflow-auto text-xs text-amber-900">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr><th className="py-1 pr-2">Row</th><th className="py-1 pr-2">SKU</th><th className="py-1">Message</th></tr>
+                      </thead>
+                      <tbody>
+                        {importResult.errors.map((error, index) => (
+                          <tr key={`${error.row}-${error.sku ?? 'empty'}-${index}`} className="border-t border-amber-200">
+                            <td className="py-1 pr-2 font-semibold">{error.row}</td>
+                            <td className="py-1 pr-2">{error.sku ?? '-'}</td>
+                            <td className="py-1">{error.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-card border border-line bg-card p-4 shadow-card">
+          <h2 className="mb-4 text-lg font-bold">Tambah Stock Transaction</h2>
+          <form onSubmit={submit} className="grid gap-3">
+            <Field label="Product">
+              <Select value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} required>
+                <option value="">Pilih produk</option>
+                {products.data?.data.map((product) => (
+                  <option key={product.id} value={product.id}>{product.product_name}</option>
+                ))}
+              </Select>
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Type">
+                <Select value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value, reference_type: e.target.value === 'adjustment' ? 'adjustment' : form.reference_type })}>
+                  <option value="in">In</option>
+                  <option value="out">Out</option>
+                  <option value="adjustment">Adjustment</option>
+                </Select>
+              </Field>
+              <Field label="Reference">
+                <Select value={form.reference_type} onChange={(e) => setForm({ ...form, reference_type: e.target.value })}>
+                  <option value="purchase">Purchase</option>
+                  <option value="sale">Sale</option>
+                  <option value="adjustment">Adjustment</option>
+                </Select>
+              </Field>
+            </div>
+            <Field label="Quantity">
+              <Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required />
+            </Field>
+            <Field label="Notes">
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </Field>
+            <Button disabled={mutation.isPending} className="w-full">
+              <Plus className="h-4 w-4" />Save Transaction
+            </Button>
+          </form>
+        </div>
       </aside>
 
       {selectedProductCard && (

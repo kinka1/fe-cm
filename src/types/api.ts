@@ -75,6 +75,17 @@ export interface Product {
   updated_at?: string;
 }
 
+export interface IngredientImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: Array<{
+    row: number;
+    sku: string | null;
+    message: string;
+  }>;
+}
+
 export type TableStatus = 'available' | 'occupied' | 'reserved';
 
 export interface DiningTable {
