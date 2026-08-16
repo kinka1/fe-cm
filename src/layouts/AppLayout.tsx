@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, BarChart3, Boxes, Building2, Calendar, ChefHat, ClipboardCheck, ClipboardList,
-  FolderTree, Grid3x3, Layers, LayoutDashboard, LogOut, Menu, Package, ShieldCheck, ShoppingCart,
-  SlidersHorizontal, Truck, UserPlus, Users, Wallet, X,
+  AlertTriangle, BarChart3, Boxes, Building2, Calendar, ChefHat, ChevronDown, ClipboardCheck,
+  ClipboardList, FolderTree, Grid3x3, Layers, LayoutDashboard, LogOut, Menu, Package, ShieldCheck,
+  ShoppingCart, SlidersHorizontal, Truck, UserPlus, Users, Wallet, X,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { type AppRole, useAuth } from '../lib/auth';
@@ -68,6 +68,13 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   },
 ];
 
+/** Cocokkan path aktif ke menu: '/' harus persis, sisanya cukup prefix segmen. */
+const isPathActive = (pathname: string, to: string) =>
+  to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
+
+const findActiveGroup = (pathname: string) =>
+  NAV_GROUPS.find((group) => group.items.some((item) => isPathActive(pathname, item.to)))?.title ?? null;
+
 const ROLE_LABEL: Record<AppRole, string> = {
   admin: 'Admin',
   supervisor: 'Supervisor',
@@ -78,7 +85,16 @@ const ROLE_LABEL: Record<AppRole, string> = {
 export function AppLayout() {
   const { user, role, logout, stores, storeId, setCurrentStore, switchingStore } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Satu grup terbuka pada satu waktu supaya sidebar tidak perlu di-scroll jauh.
+  const [openGroup, setOpenGroup] = useState<string | null>(() => findActiveGroup(pathname));
+
+  // Pindah halaman lewat link lain (redirect, tombol di konten) tetap membuka grupnya.
+  useEffect(() => {
+    const active = findActiveGroup(pathname);
+    if (active) setOpenGroup(active);
+  }, [pathname]);
 
   // Supervisor memakai menu yang sama dengan admin.
   const effectiveRole: AppRole = role === 'supervisor' ? 'admin' : role;
@@ -145,14 +161,26 @@ export function AppLayout() {
         )}
 
         <nav className="scrollbar-none min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
-          {groups.map((group) => (
-            <div key={group.title} className="mb-5 last:mb-0">
-              {/* Garis tipis di kanan judul memisahkan grup tanpa menambah tinggi baris. */}
-              <p className="mb-2 flex items-center gap-2 px-3 text-[11px] font-bold uppercase tracking-wider text-sidebar-muted">
+          {groups.map((group) => {
+            const expanded = openGroup === group.title;
+            const hasActiveItem = group.items.some((item) => isPathActive(pathname, item.to));
+            return (
+            <div key={group.title} className="mb-2 last:mb-0">
+              {/* Judul grup jadi tombol accordion; garis tipis tetap memisahkan antar grup. */}
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setOpenGroup((current) => (current === group.title ? null : group.title))}
+                className={clsx(
+                  'mb-2 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition hover:bg-sidebar-hover',
+                  hasActiveItem ? 'text-white' : 'text-sidebar-muted hover:text-white',
+                )}
+              >
                 <span className="shrink-0">{group.title}</span>
                 <span className="h-px flex-1 bg-sidebar-line" aria-hidden="true" />
-              </p>
-              <div className="grid gap-1">
+                <ChevronDown className={clsx('h-3.5 w-3.5 shrink-0 transition-transform', expanded && 'rotate-180')} />
+              </button>
+              <div className={clsx('grid gap-1 pb-3', !expanded && 'hidden')}>
                 {group.items.map((item) => (
                   <NavLink
                     key={item.to}
@@ -176,7 +204,8 @@ export function AppLayout() {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </nav>
       </aside>
 
