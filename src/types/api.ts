@@ -133,11 +133,27 @@ export interface Payment {
   id: number;
   order_id: number;
   payment_method: PaymentMethod;
+  payment_gateway?: string | null;
   amount_paid: number | string;
+  amount?: number | string;
   change_amount: number | string;
-  payment_status: 'pending' | 'success' | 'failed';
+  payment_status: 'pending' | 'success' | 'failed' | 'paid';
   payment_date?: string | null;
+  paid_at?: string | null;
   qris_transaction_id?: string | null;
+  gateway_order_id?: string | null;
+  gateway_transaction_id?: string | null;
+  gateway_response?: {
+    id?: string;
+    reference_id?: string;
+    type?: string;
+    currency?: string;
+    amount?: number | string;
+    status?: string;
+    qr_string?: string;
+    [key: string]: unknown;
+  } | null;
+  payment_fee?: number | string;
 }
 
 export interface Order {
@@ -161,6 +177,26 @@ export interface Order {
   order_status: OrderStatus;
   details?: OrderDetail[];
   payment?: Payment | null;
+}
+
+export interface PublicPaymentStatus {
+  order_id: number;
+  order_number: string;
+  customer_name?: string | null;
+  order_type?: Order['order_type'];
+  table_id?: number | null;
+  table_label?: string | null;
+  total_amount: number | string;
+  payment_method?: PaymentMethod | null;
+  payment_gateway?: string | null;
+  payment_status: PaymentStatus;
+  order_status: OrderStatus;
+  payment_status_label?: string | null;
+  order_status_label?: string | null;
+  qr_string?: string | null;
+  paid_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Employee {

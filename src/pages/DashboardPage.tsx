@@ -32,7 +32,7 @@ export function DashboardPage() {
   if (summary.isLoading || orders.isLoading) return <LoadingState />;
   if (summary.error || orders.error) return <ErrorState message="Gagal memuat dashboard. Periksa backend dan VITE_API_BASE_URL." />;
 
-  const recentOrders = (orders.data?.data ?? []).slice(0, 6);
+  const recentOrders = (orders.data ?? []).slice(0, 6);
   const assets = summary.data;
 
   const stats = [

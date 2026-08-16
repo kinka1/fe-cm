@@ -10,6 +10,7 @@ const page = <T extends Record<string, React.ComponentType>>(loader: () => Promi
 
 const LoginPage = page(() => import('./pages/LoginPage'), 'LoginPage');
 const UserOrderPage = page(() => import('./pages/UserOrderPage'), 'UserOrderPage');
+const PaymentStatusPage = page(() => import('./pages/PaymentStatusPage'), 'PaymentStatusPage');
 const DashboardPage = page(() => import('./pages/DashboardPage'), 'DashboardPage');
 const PosPage = page(() => import('./pages/PosPage'), 'PosPage');
 const CashierSessionPage = page(() => import('./pages/CashierSessionPage'), 'CashierSessionPage');
@@ -77,6 +78,7 @@ const router = createBrowserRouter([
   { path: '/u/:qrCode', element: <Lazy><UserOrderPage /></Lazy> },
   { path: '/order', element: <Lazy><UserOrderPage /></Lazy> },
   { path: '/order/:qrCode', element: <Lazy><UserOrderPage /></Lazy> },
+  { path: '/payment-status/:orderNumber', element: <Lazy><PaymentStatusPage /></Lazy> },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
   {
     path: '/',

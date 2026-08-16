@@ -109,7 +109,7 @@ export function RevenueReportPage() {
 
   const daily = useQuery({
     queryKey: ['revenue', 'daily', dailyDate, effectiveStoreId, paymentMethod],
-    queryFn: () => revenueApi.daily({ date: dailyDate, include_orders: true, per_page: 10, ...scope }),
+    queryFn: () => revenueApi.daily({ date: dailyDate, include_orders: true, per_page: 100, ...scope }),
     enabled: Boolean(dailyDate),
   });
 

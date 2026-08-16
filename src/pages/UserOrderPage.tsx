@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Minus, Plus, Search, Sparkles, Trash2, X, CreditCard, CheckCircle2, Coffee, MessageSquare, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Minus, Plus, Search, Sparkles, Trash2, Coffee, MessageSquare, ArrowLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { catalogApi, posApi, storesApi } from '../api/endpoints';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { posApi, publicApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
 import { Button } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { currency, toNumber } from '../lib/format';
 import { useToast } from '../lib/toast';
-import type { Category, DiningTable, Order, Product } from '../types/api';
+import type { Category, Product } from '../types/api';
+
+const PUBLIC_STORE_ID = 3;
 
 interface CartItem {
   product: Product;
@@ -30,12 +32,12 @@ const isBeverage = (product: Product, categoriesList?: Category[]) => {
 
 export function UserOrderPage() {
   const { qrCode } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlQrCode = qrCode || searchParams.get('qr') || '';
   const [manualQrCode, setManualQrCode] = useState('');
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [selectedStoreId, setSelectedStoreId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderType, setOrderType] = useState<'dine-in' | 'pick-up'>('dine-in');
@@ -43,34 +45,25 @@ export function UserOrderPage() {
   // Mobile navigation views
   const [showCart, setShowCart] = useState(false);
 
-  // Checkout & Payment states
-  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
-  const [showQrisModal, setShowQrisModal] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success'>('pending');
-
   const toast = useToast();
   const queryClient = useQueryClient();
   
   // Resolve active QR Code table representation
   const submitQrCode = urlQrCode || manualQrCode.trim();
+  const tableLabel = submitQrCode || 'Input';
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
-  const stores = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.list() });
-  const tableMenu = useQuery({
-    queryKey: ['user-table-menu', urlQrCode, search, categoryId, selectedStoreId],
-    enabled: Boolean(urlQrCode),
-    queryFn: () => posApi.tableMenu(urlQrCode, { search: search || undefined, category_id: categoryId || undefined, store_id: selectedStoreId || undefined, per_page: 100 }),
+  const categories = useQuery({
+    queryKey: ['public-categories', PUBLIC_STORE_ID],
+    queryFn: () => publicApi.categories({ store_id: PUBLIC_STORE_ID }),
   });
-  const publicMenu = useQuery({
-    queryKey: ['user-menu', search, categoryId, selectedStoreId],
-    enabled: !urlQrCode,
-    queryFn: () => posApi.menu({ search: search || undefined, category_id: categoryId || undefined, store_id: selectedStoreId || undefined, per_page: 100 }),
+  const menu = useQuery({
+    queryKey: ['public-pos-menu', PUBLIC_STORE_ID, search, categoryId],
+    queryFn: () => publicApi.menu({ search: search || undefined, category_id: categoryId || undefined, store_id: PUBLIC_STORE_ID, per_page: 100 }),
   });
 
-  const menuRows = urlQrCode ? tableMenu.data?.menu.data ?? [] : publicMenu.data?.data ?? [];
-  const table: DiningTable | undefined = tableMenu.data?.table;
-  const isLoading = urlQrCode ? tableMenu.isLoading : publicMenu.isLoading;
-  const error = urlQrCode ? tableMenu.error : publicMenu.error;
+  const menuRows = menu.data?.data ?? [];
+  const isLoading = menu.isLoading;
+  const error = menu.error;
   
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + toNumber(item.product.selling_price) * item.quantity, 0), [cart]);
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
@@ -78,13 +71,11 @@ export function UserOrderPage() {
   const mutation = useMutation({
     mutationFn: posApi.createQrOrder,
     onSuccess: (order) => {
-      setCreatedOrder(order);
-      setPaymentStatus('pending');
-      setShowQrisModal(true);
       setCart([]);
       setShowCart(false);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['stock-report'] });
+      navigate(`/payment-status/${encodeURIComponent(order.order_number)}`);
     },
     onError: (mutationError) => toast.error(getApiError(mutationError)),
   });
@@ -182,15 +173,6 @@ export function UserOrderPage() {
     });
   };
 
-  const handleSimulatePayment = () => {
-    setPaymentStatus('success');
-    toast.success('Simulasi Pembayaran Berhasil! Pesanan diproses Barista.');
-    setTimeout(() => {
-      setShowQrisModal(false);
-      setCreatedOrder(null);
-    }, 4000);
-  };
-
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center">
       <div className="w-full max-w-md bg-[#FDFBF7] text-[#2E1D19] min-h-screen flex flex-col shadow-2xl relative border-x border-[#FAF0E6] pb-24">
@@ -246,7 +228,7 @@ export function UserOrderPage() {
 
                 <div className="relative z-10 rounded-xl bg-white/10 border border-white/20 px-3 py-2 text-center backdrop-blur-md min-w-[75px]">
                   <p className="text-[8px] font-bold uppercase text-[#C8A27B] tracking-wider">Meja</p>
-                  <p className="text-xl font-black">{table?.table_number ?? (urlQrCode ? urlQrCode : 'Input')}</p>
+                  <p className="text-xl font-black">{tableLabel}</p>
                   {!urlQrCode && (
                     <input
                       type="text"
@@ -268,34 +250,6 @@ export function UserOrderPage() {
                    placeholder="Cari kopi, latte, teh, roti..."
                    className="w-full bg-transparent border-0 pl-2 text-xs text-[#2E1D19] placeholder:text-[#8A6F6A] focus:outline-none focus:ring-0 p-0"
                  />
-               </div>
-
-               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                 <button
-                   onClick={() => setSelectedStoreId('')}
-                   className={clsx(
-                     'shrink-0 rounded-full px-4 py-1.5 text-[10px] font-black transition border',
-                     !selectedStoreId 
-                       ? 'bg-[#4A2C2A] border-[#4A2C2A] text-white' 
-                       : 'bg-white border-[#FAF0E6] text-[#7D645E]'
-                   )}
-                 >
-                   Semua Cabang
-                 </button>
-                 {stores.data?.map((store) => (
-                   <button
-                     key={store.id}
-                     onClick={() => setSelectedStoreId(String(store.id))}
-                     className={clsx(
-                       'shrink-0 rounded-full px-4 py-1.5 text-[10px] font-black transition border',
-                       selectedStoreId === String(store.id)
-                         ? 'bg-[#4A2C2A] border-[#4A2C2A] text-white'
-                         : 'bg-white border-[#FAF0E6] text-[#7D645E]'
-                     )}
-                   >
-                     {store.store_name}
-                   </button>
-                 ))}
                </div>
 
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -427,7 +381,7 @@ export function UserOrderPage() {
                 <div>
                   <span className="text-[8px] font-bold uppercase text-[#C8A27B] tracking-wider block">Metode Pelayanan</span>
                   <strong className="text-[#4A2C2A] text-sm mt-0.5 block">
-                    {orderType === 'dine-in' ? `Antar ke Meja ${table?.table_number ?? submitQrCode}` : `Ambil di Bar (Meja ${table?.table_number ?? submitQrCode})`}
+                    {orderType === 'dine-in' ? `Antar ke Meja ${tableLabel}` : `Ambil di Bar (Meja ${tableLabel})`}
                   </strong>
                 </div>
                 <div className="rounded-full bg-white border border-[#EADAC9] px-3 py-1 text-[10px] font-black text-[#4A2C2A]">
@@ -707,130 +661,6 @@ export function UserOrderPage() {
           </>
         )}
 
-        {showQrisModal && createdOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-all duration-300">
-            <div className="relative w-full max-w-sm overflow-hidden rounded-[28px] bg-white p-5 shadow-2xl border border-[#FAF0E6] animate-in fade-in zoom-in-95 duration-200">
-              
-              <button
-                onClick={() => setShowQrisModal(false)}
-                className="absolute top-4 right-4 rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              {paymentStatus === 'pending' ? (
-                <div className="space-y-4 text-center">
-                  <div>
-                    <h3 className="text-lg font-black text-[#4A2C2A]">Pembayaran QRIS</h3>
-                    <p className="text-[10px] text-[#7D645E]">Scan kode QRIS dibawah ini untuk membayar</p>
-                  </div>
-
-                  <div className="bg-slate-50 rounded-2xl p-3 border border-[#EADAC9] max-w-[210px] mx-auto">
-                    <div className="bg-[#122A4E] text-white py-0.5 px-2 rounded text-[8px] font-black tracking-widest uppercase mb-2 inline-block">
-                      QRIS GPN
-                    </div>
-                    
-                    <svg width="150" height="150" viewBox="0 0 100 100" className="mx-auto bg-white p-2 rounded-lg border border-slate-200">
-                      <rect width="100" height="100" fill="white" />
-                      {/* Finders */}
-                      <rect x="2" y="2" width="20" height="20" fill="#1A1A1A" />
-                      <rect x="5" y="5" width="14" height="14" fill="white" />
-                      <rect x="8" y="8" width="8" height="8" fill="#1A1A1A" />
-
-                      <rect x="78" y="2" width="20" height="20" fill="#1A1A1A" />
-                      <rect x="81" y="5" width="14" height="14" fill="white" />
-                      <rect x="84" y="8" width="8" height="8" fill="#1A1A1A" />
-
-                      <rect x="2" y="78" width="20" height="20" fill="#1A1A1A" />
-                      <rect x="5" y="81" width="14" height="14" fill="white" />
-                      <rect x="8" y="84" width="8" height="8" fill="#1A1A1A" />
-
-                      {/* Data mock pattern */}
-                      <rect x="30" y="5" width="6" height="6" fill="#1A1A1A" />
-                      <rect x="42" y="8" width="4" height="8" fill="#1A1A1A" />
-                      <rect x="54" y="3" width="8" height="4" fill="#1A1A1A" />
-                      <rect x="66" y="12" width="6" height="6" fill="#1A1A1A" />
-                      
-                      <rect x="5" y="30" width="8" height="4" fill="#1A1A1A" />
-                      <rect x="16" y="38" width="4" height="12" fill="#1A1A1A" />
-                      
-                      <rect x="30" y="30" width="40" height="40" rx="4" fill="#1A1A1A" />
-                      <rect x="35" y="35" width="30" height="30" fill="white" />
-                      
-                      <rect x="78" y="30" width="6" height="12" fill="#1A1A1A" />
-                      <rect x="88" y="48" width="8" height="4" fill="#1A1A1A" />
-
-                      <rect x="30" y="78" width="12" height="6" fill="#1A1A1A" />
-                      <rect x="48" y="84" width="6" height="12" fill="#1A1A1A" />
-                      <rect x="60" y="78" width="12" height="4" fill="#1A1A1A" />
-                      
-                      <rect x="78" y="78" width="6" height="6" fill="#1A1A1A" />
-                      <rect x="88" y="88" width="10" height="10" fill="#1A1A1A" />
-
-                      <rect x="42" y="42" width="16" height="16" rx="4" fill="#4A2C2A" />
-                      <text x="50" y="52" fontSize="9" fontWeight="black" fill="#C8A27B" textAnchor="middle">☕</text>
-                    </svg>
-                    
-                    <p className="text-[9px] font-bold text-[#8A6F6A] mt-1.5 uppercase tracking-wide">NMID: ID20261108229</p>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#FAF5F0] p-3 text-left border border-[#FAF0E6] text-[11px] space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-[#8A6F6A]">Nomor Order</span>
-                      <strong className="text-[#2E1D19]">{createdOrder.order_number}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8A6F6A]">Pelanggan</span>
-                      <strong className="text-[#2E1D19]">{createdOrder.customer_name}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8A6F6A]">Nomor Meja</span>
-                      <strong className="text-[#2E1D19]">
-                        {orderType === 'dine-in' ? `Meja ${table?.table_number ?? submitQrCode}` : `Pick Up (Meja ${table?.table_number ?? submitQrCode})`}
-                      </strong>
-                    </div>
-                    <div className="h-px bg-[#EADAC9] my-1.5" />
-                    <div className="flex justify-between text-xs">
-                      <span className="font-bold text-[#4A2C2A]">Total Tagihan</span>
-                      <strong className="text-[#4A2C2A] text-sm font-black">{currency(createdOrder.total_amount)}</strong>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleSimulatePayment}
-                    className="w-full rounded-full bg-[#4A2C2A] hover:bg-[#3D2321] text-white py-3 font-bold text-xs shadow flex items-center justify-center gap-1.5"
-                  >
-                    <CreditCard className="h-4 w-4" /> Simulasikan Bayar Sukses
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center py-4 space-y-4">
-                  <div className="mx-auto h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 animate-bounce">
-                    <CheckCircle2 className="h-10 w-10" />
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-black text-emerald-800">Pembayaran Berhasil!</h3>
-                    <p className="text-xs text-[#7D645E] mt-1.5 leading-relaxed">
-                      Terima kasih <strong>{createdOrder.customer_name}</strong>, pesanan dengan nomor order <strong>{createdOrder.order_number}</strong> sedang diproses Barista kami.
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-150 inline-block text-[10px] font-semibold text-emerald-800">
-                    ⚡ Memulai Pemrosesan Bar Calon Mantoe
-                  </div>
-                  
-                  <Button
-                    onClick={() => setShowQrisModal(false)}
-                    className="w-full rounded-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 mt-3 text-xs"
-                  >
-                    Tutup & Kembali
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

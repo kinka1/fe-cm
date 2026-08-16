@@ -1,4 +1,4 @@
-import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, IngredientImportResult, LaravelPage, Order, OrderStatus, Product, ProductBatch, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, IngredientImportResult, LaravelPage, Order, OrderStatus, PaymentStatus, Product, ProductBatch, PublicPaymentStatus, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -53,9 +53,17 @@ export const posApi = {
   tableMenu: async (qrCode: string, params?: Record<string, unknown>) => unwrap<TableMenuResponse>(await api.get(`/pos/tables/${qrCode}/menu`, { params })),
   createQrOrder: async (payload: QrOrderPayload) => unwrap<Order>(await api.post('/pos/qr-orders', payload)),
   createCashierOrder: async (payload: CashierOrderPayload) => unwrap<Order>(await api.post('/pos/cashier-orders', payload)),
-  orders: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Order>>(await api.get('/pos/orders', { params })),
+  orders: async (params?: Record<string, unknown>) => toList(unwrap<Order[] | LaravelPage<Order>>(await api.get('/pos/orders', { params }))),
+  ordersPaginated: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Order>>(await api.get('/pos/orders/paginated', { params })),
   order: async (id: number) => unwrap<Order>(await api.get(`/pos/orders/${id}`)),
   updateStatus: async (id: number, order_status: OrderStatus) => unwrap<Order>(await api.patch(`/pos/orders/${id}/status`, { order_status })),
+  updatePaymentStatus: async (id: number, payment_status: PaymentStatus) => unwrap<Order>(await api.patch(`/pos/orders/${id}/payment-status`, { payment_status })),
+};
+
+export const publicApi = {
+  categories: async (params?: Record<string, unknown>) => toList(unwrap<Category[] | LaravelPage<Category>>(await api.get('/public/categories', { params }))),
+  menu: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Product>>(await api.get('/public/pos/menu', { params })),
+  paymentStatus: async (orderNumber: string) => unwrap<PublicPaymentStatus>(await api.get(`/public/pos/orders/${encodeURIComponent(orderNumber)}/payment-status`)),
 };
 
 /**
