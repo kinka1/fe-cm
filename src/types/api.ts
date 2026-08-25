@@ -57,6 +57,16 @@ export interface Category {
   updated_at?: string;
 }
 
+export interface Modifier {
+  id: number;
+  store_id?: number | null;
+  name: string;
+  price_delta: number | string;
+  is_active: boolean | number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Product {
   id: number;
   store_id?: number | null;
@@ -71,6 +81,7 @@ export interface Product {
   cost_price: number | string;
   selling_price: number | string;
   is_active: boolean | number;
+  modifiers?: Modifier[];
   created_at?: string;
   updated_at?: string;
 }

@@ -1,4 +1,4 @@
-import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, IngredientImportResult, LaravelPage, Order, OrderStatus, PaymentStatus, Product, ProductBatch, PublicPaymentStatus, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, IngredientImportResult, LaravelPage, Modifier, Order, OrderStatus, PaymentStatus, Product, ProductBatch, PublicPaymentStatus, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -58,6 +58,12 @@ export const posApi = {
   order: async (id: number) => unwrap<Order>(await api.get(`/pos/orders/${id}`)),
   updateStatus: async (id: number, order_status: OrderStatus) => unwrap<Order>(await api.patch(`/pos/orders/${id}/status`, { order_status })),
   updatePaymentStatus: async (id: number, payment_status: PaymentStatus) => unwrap<Order>(await api.patch(`/pos/orders/${id}/payment-status`, { payment_status })),
+  modifiers: async (params?: Record<string, unknown>) => toList(unwrap<Modifier[] | LaravelPage<Modifier>>(await api.get('/pos/modifiers', { params }))),
+  createModifier: async (payload: Partial<Modifier>) => unwrap<Modifier>(await api.post('/pos/modifiers', payload)),
+  updateModifier: async (id: number, payload: Partial<Pick<Modifier, 'name' | 'price_delta' | 'is_active'>>) => unwrap<Modifier>(await api.patch(`/pos/modifiers/${id}`, payload)),
+  deleteModifier: async (id: number) => unwrap<null>(await api.delete(`/pos/modifiers/${id}`)),
+  assignCategoryModifier: async (categoryId: number, payload: { modifier_id: number; is_active: boolean }) =>
+    unwrap<unknown>(await api.post(`/pos/categories/${categoryId}/modifiers`, payload)),
 };
 
 export const publicApi = {

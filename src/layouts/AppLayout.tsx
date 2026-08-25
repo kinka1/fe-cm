@@ -37,6 +37,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { to: '/products', label: 'Produk', icon: Package, roles: ['admin'] },
       { to: '/categories', label: 'Kategori', icon: FolderTree, roles: ['admin'] },
+      { to: '/modifiers', label: 'Modifier', icon: SlidersHorizontal, roles: ['admin'] },
       { to: '/recipes', label: 'Resep', icon: ChefHat, roles: ['admin'] },
     ],
   },

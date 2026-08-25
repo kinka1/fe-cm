@@ -22,6 +22,7 @@ const RolesPage = page(() => import('./pages/RolesPage'), 'RolesPage');
 const RegisterUserPage = page(() => import('./pages/RegisterUserPage'), 'RegisterUserPage');
 const ProductsPage = page(() => import('./pages/ProductsPage'), 'ProductsPage');
 const CategoriesPage = page(() => import('./pages/CategoriesPage'), 'CategoriesPage');
+const ModifiersPage = page(() => import('./pages/ModifiersPage'), 'ModifiersPage');
 const StockPage = page(() => import('./pages/StockPage'), 'StockPage');
 const EmployeesPage = page(() => import('./pages/EmployeesPage'), 'EmployeesPage');
 const SuppliersPage = page(() => import('./pages/SuppliersPage'), 'SuppliersPage');
@@ -95,6 +96,7 @@ const router = createBrowserRouter([
       { path: 'users/register', element: <RoleRoute roles={ADMIN_ONLY}><RegisterUserPage /></RoleRoute> },
       { path: 'products', element: <RoleRoute roles={ADMIN_ONLY}><ProductsPage /></RoleRoute> },
       { path: 'categories', element: <RoleRoute roles={ADMIN_ONLY}><CategoriesPage /></RoleRoute> },
+      { path: 'modifiers', element: <RoleRoute roles={ADMIN_ONLY}><ModifiersPage /></RoleRoute> },
       { path: 'stock', element: <RoleRoute roles={ADMIN_ONLY}><StockPage /></RoleRoute> },
       { path: 'employees', element: <RoleRoute roles={ADMIN_ONLY}><EmployeesPage /></RoleRoute> },
       { path: 'suppliers', element: <RoleRoute roles={ADMIN_ONLY}><SuppliersPage /></RoleRoute> },
