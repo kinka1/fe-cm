@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit2, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { Edit2, Loader2, Plus, Search, Trash2, RotateCcw, X } from 'lucide-react';
 import { catalogApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
-import { Badge, Button, Field, Input, Select, Textarea } from '../components/ui';
+import { Badge, Button, Field, IconButton, Input, Select, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { currency, decimal, toNumber } from '../lib/format';
 import { useToast } from '../lib/toast';
@@ -12,28 +12,38 @@ import type { Product } from '../types/api';
 
 const blank: Partial<Product> = { product_name: '', sku: '', category_id: 0, description: '', unit_of_measure: 'pcs', minimum_stock: 0, current_stock: 0, cost_price: 0, selling_price: 0, is_active: true };
 
+/** Jeda sebelum ketikan dikirim ke backend; cukup untuk menampung satu kata tanpa terasa lambat. */
+const SEARCH_DEBOUNCE_MS = 400;
+
 export function ProductsPage() {
+  // `search` mengikuti ketikan agar input tetap responsif; `appliedSearch` yang
+  // dipakai query — dijeda supaya tiap huruf tidak memicu satu request paginasi.
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [tab, setTab] = useState<'active' | 'deleted'>('active');
   const [editing, setEditing] = useState<Partial<Product>>(blank);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [activePage, setActivePage] = useState(1);
   const [deletedPage, setDeletedPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage] = useState(10);
 
   const toast = useToast();
   const queryClient = useQueryClient();
   const { storeId } = useAuth();
 
+  // Pencarian dikirim ke backend (bukan filter di klien) karena daftar produk dipaginasi;
+  // menahan data sebelumnya membuat tabel tidak berkedip tiap huruf yang diketik.
   const products = useQuery({
-    queryKey: ['products', search, storeId, activePage, perPage],
-    queryFn: () => catalogApi.products({ search: search || undefined, store_id: storeId ?? undefined, page: activePage, per_page: perPage })
+    queryKey: ['products', appliedSearch, storeId, activePage, perPage],
+    queryFn: () => catalogApi.products({ search: appliedSearch || undefined, store_id: storeId ?? undefined, page: activePage, per_page: perPage }),
+    placeholderData: (previous) => previous
   });
 
   const deletedProducts = useQuery({
-    queryKey: ['products-deleted', search, storeId, deletedPage, perPage],
-    queryFn: () => catalogApi.deletedProducts({ search: search || undefined, store_id: storeId ?? undefined, page: deletedPage, per_page: perPage }),
-    enabled: tab === 'deleted'
+    queryKey: ['products-deleted', appliedSearch, storeId, deletedPage, perPage],
+    queryFn: () => catalogApi.deletedProducts({ search: appliedSearch || undefined, store_id: storeId ?? undefined, page: deletedPage, per_page: perPage }),
+    enabled: tab === 'deleted',
+    placeholderData: (previous) => previous
   });
 
   const categories = useQuery({ queryKey: ['categories', 'list', storeId], queryFn: () => catalogApi.categories({ store_id: storeId ?? undefined, per_page: 100 }) });
@@ -42,6 +52,21 @@ export function ProductsPage() {
     setActivePage(1);
     setDeletedPage(1);
   }, [storeId]);
+
+  /**
+   * Auto-search: query dijalankan sendiri setelah user berhenti mengetik, tanpa
+   * tombol cari atau Enter. Timer di-reset tiap ketikan, jadi hanya kata terakhir
+   * yang benar-benar dikirim. Paginasi ikut kembali ke halaman 1 karena hasilnya set baru.
+   */
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedSearch(search.trim());
+      setActivePage(1);
+      setDeletedPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const save = useMutation({
     mutationFn: (payload: Partial<Product>) => editingId ? catalogApi.updateProduct(editingId, payload) : catalogApi.createProduct(payload),
@@ -105,17 +130,14 @@ export function ProductsPage() {
     }
   };
 
-  const changeSearch = (value: string) => {
-    setSearch(value);
-    setActivePage(1);
-    setDeletedPage(1);
+  // Menghapus pencarian tidak perlu menunggu debounce; hasil penuh langsung tampil.
+  const clearSearch = () => {
+    setSearch('');
+    setAppliedSearch('');
   };
 
-  const changePerPage = (value: number) => {
-    setPerPage(value);
-    setActivePage(1);
-    setDeletedPage(1);
-  };
+  // Selama masih menunggu debounce atau request berjalan, tampilkan spinner di dalam input.
+  const searching = search.trim() !== appliedSearch || (Boolean(appliedSearch) && (tab === 'active' ? products.isFetching : deletedProducts.isFetching));
 
   return (
     <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -140,11 +162,43 @@ export function ProductsPage() {
           </button>
         </div>
 
+        {/* Satu baris filter untuk kedua tab: query aktif dan query sampah sama-sama memakai `search`. */}
+        <div className="relative">
+          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+            <Search className="h-4 w-4" />
+          </span>
+          <Input
+            className="pl-9 pr-10"
+            placeholder="Nama produk atau SKU..."
+            aria-label="Cari produk"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          {searching ? (
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </span>
+          ) : search ? (
+            <IconButton
+              label="Bersihkan pencarian"
+              size="sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2"
+              onClick={clearSearch}
+            >
+              <X className="h-4 w-4" />
+            </IconButton>
+          ) : null}
+        </div>
         {tab === 'active' ? (
           <>
             {products.isLoading && <LoadingState />}
             {products.error && <ErrorState message={getApiError(products.error)} />}
-            {!products.isLoading && (products.data?.data.length ?? 0) === 0 && <EmptyState title="Produk kosong" />}
+            {!products.isLoading && (products.data?.data.length ?? 0) === 0 && (
+              <EmptyState
+                title={appliedSearch ? 'Produk tidak ditemukan' : 'Produk kosong'}
+                description={appliedSearch ? `Tidak ada produk yang cocok dengan "${appliedSearch}".` : undefined}
+              />
+            )}
 
             {!products.isLoading && products.data && products.data.data.length > 0 && (
               <div className="overflow-hidden rounded-card border border-line bg-card shadow-card">
@@ -194,7 +248,10 @@ export function ProductsPage() {
             {deletedProducts.isLoading && <LoadingState />}
             {deletedProducts.error && <ErrorState message={getApiError(deletedProducts.error)} />}
             {!deletedProducts.isLoading && (deletedProducts.data?.data.length ?? 0) === 0 && (
-              <EmptyState title="Sampah kosong" description="Tidak ada produk yang di-soft delete." />
+              <EmptyState
+                title={appliedSearch ? 'Produk tidak ditemukan' : 'Sampah kosong'}
+                description={appliedSearch ? `Tidak ada produk terhapus yang cocok dengan "${appliedSearch}".` : 'Tidak ada produk yang di-soft delete.'}
+              />
             )}
 
             {!deletedProducts.isLoading && deletedProducts.data && deletedProducts.data.data.length > 0 && (

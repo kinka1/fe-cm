@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { catalogApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
-import { Button, Card, Field, IconButton, Input, PageHeader, Select, SplitLayout, Textarea } from '../components/ui';
+import { Button, Card, Field, IconButton, Input, PageHeader, SplitLayout, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
@@ -15,7 +15,7 @@ export function CategoriesPage() {
   const [form, setForm] = useState<Partial<Category>>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(15);
+  const [perPage] = useState(15);
   const toast = useToast();
   const queryClient = useQueryClient();
   const { storeId } = useAuth();
