@@ -214,6 +214,8 @@ export interface Employee {
   id: number;
   store_id?: number | null;
   full_name: string;
+  username: string;
+  current_store_name: string;
   email: string;
   phone?: string | null;
   address?: string | null;
@@ -225,6 +227,30 @@ export interface Employee {
   kk_url?: string | null;
   status: 'active' | 'inactive';
   join_date?: string;
+}
+
+export interface EmployeeStoreAccess {
+  id: number;
+  full_name: string;
+  store_id?: number | null;
+  current_store_id?: number | null;
+  stores: Array<Store & {
+    pivot?: {
+      employee_id: number;
+      store_id: number;
+      created_at?: string;
+      updated_at?: string;
+    };
+  }>;
+  user?: {
+    id: number;
+    employee_id: number;
+    current_store_id?: number | null;
+    name?: string;
+    username?: string;
+    email?: string;
+    current_store?: Pick<Store, 'id' | 'store_name' | 'code'> | null;
+  } | null;
 }
 
 export interface Role {

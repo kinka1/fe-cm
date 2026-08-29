@@ -26,7 +26,7 @@ export function PosPage() {
   const [amountPaid, setAmountPaid] = useState('');
   const [discount, setDiscount] = useState('0');
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const categories = useQuery({ queryKey: ['categories', 'list', storeId], queryFn: () => catalogApi.categories({ store_id: storeId ?? undefined, per_page: 100 }), enabled: Boolean(storeId) });
   const paymentMethods = useQuery({ queryKey: ['pos', 'payment-methods'], queryFn: posApi.paymentMethods });
 
   const menu = useQuery({

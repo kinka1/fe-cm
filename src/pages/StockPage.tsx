@@ -42,7 +42,7 @@ export function StockPage() {
   const [importResult, setImportResult] = useState<IngredientImportResult | null>(null);
 
   const products = useQuery({ queryKey: ['products', 'stock'], queryFn: () => catalogApi.products({ per_page: 200 }) });
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const categories = useQuery({ queryKey: ['categories', 'list'], queryFn: () => catalogApi.categories({ per_page: 100 }) });
   const stores = useQuery({ queryKey: ['stores', 'ingredient-import'], queryFn: () => storesApi.list() });
   const transactions = useQuery({ queryKey: ['stock-transactions'], queryFn: () => stockApi.transactions({ per_page: 50 }) });
   

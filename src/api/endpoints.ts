@@ -1,4 +1,4 @@
-import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, IngredientImportResult, LaravelPage, Modifier, Order, OrderStatus, PaymentStatus, Product, ProductBatch, PublicPaymentStatus, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
+import type { ApprovalPayload, AssetsSummary, CashierOrderPayload, Category, Employee, EmployeeStoreAccess, IngredientImportResult, LaravelPage, Modifier, Order, OrderStatus, PaymentStatus, Product, ProductBatch, PublicPaymentStatus, PurchaseOrder, PurchaseOrderPayload, PurchaseOrderUpdatePayload, QrOrderPayload, Recipe, RecipePayload, StockAdjustment, StockAdjustmentPayload, StockAlertRow, StockOpname, StockOpnameItem, StockReportRow, StockTransaction, Supplier, TableMenuResponse, User, StockCardResponse, Attendance, AttendanceSummary, AttendancePayload, Store, Role, DiningTable, TableStatus, CashierSession, CashierCashMovement, CashMovementType, CashierSessionSummary, PaymentMethodOption, PosCart, CartCheckoutPayload, RegisterPayload, RevenueSummary, RevenueDailyResponse, SalesReportResponse, StockMovementSummaryRow } from '../types/api';
 import { api } from './client';
 
 const unwrap = <T>(response: { data: { data?: T } | T }) => {
@@ -34,7 +34,8 @@ export const authApi = {
 };
 
 export const catalogApi = {
-  categories: async () => toList(unwrap<Category[] | LaravelPage<Category>>(await api.get('/categories'))),
+  categories: async (params?: Record<string, unknown>) => toList(unwrap<Category[] | LaravelPage<Category>>(await api.get('/categories', { params }))),
+  categoriesPaginated: async (params?: Record<string, unknown>) => unwrap<LaravelPage<Category>>(await api.get('/categories', { params })),
   createCategory: async (payload: Partial<Category>) => unwrap<Category>(await api.post('/categories', payload)),
   updateCategory: async (id: number, payload: Partial<Category>) => unwrap<Category>(await api.put(`/categories/${id}`, payload)),
   deleteCategory: async (id: number) => unwrap<null>(await api.delete(`/categories/${id}`)),
@@ -178,6 +179,11 @@ export const employeesApi = {
   // Laravel tidak mem-parse multipart pada PUT; pakai POST + _method=PUT (payload sudah menyertakan _method).
   update: async (id: number, payload: FormData) => unwrap<Employee>(await api.post(`/employees/${id}`, payload)),
   delete: async (id: number) => unwrap<null>(await api.delete(`/employees/${id}`)),
+  stores: async (id: number) => unwrap<EmployeeStoreAccess>(await api.get(`/employees/${id}/stores`)),
+  syncStores: async (id: number, payload: { store_ids: number[]; current_store_id?: number | null }) =>
+    unwrap<EmployeeStoreAccess>(await api.put(`/employees/${id}/stores`, payload)),
+  assignStore: async (employeeId: number, storeId: number) => unwrap<EmployeeStoreAccess>(await api.post(`/employees/${employeeId}/stores/${storeId}`)),
+  removeStore: async (employeeId: number, storeId: number) => unwrap<EmployeeStoreAccess>(await api.delete(`/employees/${employeeId}/stores/${storeId}`)),
 };
 
 export const rolesApi = {

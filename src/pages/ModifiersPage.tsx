@@ -26,7 +26,7 @@ export function ModifiersPage() {
     enabled: Boolean(storeId),
   });
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const categories = useQuery({ queryKey: ['categories', 'list', storeId], queryFn: () => catalogApi.categories({ store_id: storeId ?? undefined, per_page: 100 }) });
 
   const menuPreview = useQuery({
     queryKey: ['pos-menu-preview', storeId],

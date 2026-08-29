@@ -87,7 +87,7 @@ export function RevenueReportPage() {
   const scope = { store_id: effectiveStoreId, payment_method: paymentMethod || null };
   const rangeReady = Boolean(fromDate && toDate);
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const categories = useQuery({ queryKey: ['categories', 'list', effectiveStoreId], queryFn: () => catalogApi.categories({ store_id: effectiveStoreId ?? undefined, per_page: 100 }) });
 
   const summary = useQuery({
     queryKey: ['revenue', 'summary', fromDate, toDate, effectiveStoreId, paymentMethod],

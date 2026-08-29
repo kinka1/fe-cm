@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { catalogApi } from '../api/endpoints';
 import { getApiError } from '../api/client';
-import { Button, Card, Field, IconButton, Input, PageHeader, SplitLayout, Textarea } from '../components/ui';
+import { Button, Card, Field, IconButton, Input, PageHeader, Select, SplitLayout, Textarea } from '../components/ui';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useToast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
@@ -14,11 +14,20 @@ const EMPTY_FORM: Partial<Category> = { category_name: '', description: '' };
 export function CategoriesPage() {
   const [form, setForm] = useState<Partial<Category>>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(15);
   const toast = useToast();
   const queryClient = useQueryClient();
   const { storeId } = useAuth();
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const categories = useQuery({
+    queryKey: ['categories', 'paginated', storeId, page, perPage],
+    queryFn: () => catalogApi.categoriesPaginated({ store_id: storeId ?? undefined, page, per_page: perPage }),
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [storeId]);
 
   const reset = () => {
     setForm(EMPTY_FORM);
@@ -65,12 +74,14 @@ export function CategoriesPage() {
           <>
             {categories.isLoading && <LoadingState />}
             {categories.error && <ErrorState message={getApiError(categories.error)} />}
-            {!categories.isLoading && !categories.error && categories.data?.length === 0 && (
+            {!categories.isLoading && !categories.error && categories.data?.data.length === 0 && (
               <EmptyState title="Kategori kosong" description="Tambahkan kategori lewat form di samping." />
             )}
 
+           
+
             <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-              {categories.data?.map((category) => (
+              {categories.data?.data.map((category) => (
                 <Card key={category.id} className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate font-bold">{category.category_name}</h2>
@@ -87,6 +98,10 @@ export function CategoriesPage() {
                 </Card>
               ))}
             </div>
+
+            {categories.data && categories.data.data.length > 0 && (
+              <PaginationBar pageData={categories.data} page={page} setPage={setPage} isFetching={categories.isFetching} />
+            )}
           </>
         }
         aside={
@@ -110,5 +125,37 @@ export function CategoriesPage() {
         }
       />
     </section>
+  );
+}
+
+interface PaginationBarProps {
+  pageData: {
+    from: number | null;
+    to: number | null;
+    total: number;
+    last_page: number;
+  };
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  isFetching: boolean;
+}
+
+function PaginationBar({ pageData, page, setPage, isFetching }: PaginationBarProps) {
+  const startRow = pageData.from ?? 0;
+  const endRow = pageData.to ?? 0;
+  const totalRows = pageData.total ?? 0;
+  const lastPage = pageData.last_page ?? 1;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-card px-4 py-3 text-sm shadow-card">
+      <p className="text-muted">
+        Menampilkan <span className="font-semibold text-ink">{startRow || 0}-{endRow || 0}</span> dari <span className="font-semibold text-ink">{totalRows}</span> kategori
+      </p>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" size="sm" disabled={page <= 1 || isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Button>
+        <span className="rounded-md border border-line bg-subtle px-3 py-1 text-xs font-semibold text-ink">Page {page} / {lastPage}</span>
+        <Button variant="secondary" size="sm" disabled={page >= lastPage || isFetching} onClick={() => setPage((current) => Math.min(lastPage, current + 1))}>Next</Button>
+      </div>
+    </div>
   );
 }

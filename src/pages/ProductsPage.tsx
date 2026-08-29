@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { catalogApi } from '../api/endpoints';
@@ -17,43 +17,51 @@ export function ProductsPage() {
   const [tab, setTab] = useState<'active' | 'deleted'>('active');
   const [editing, setEditing] = useState<Partial<Product>>(blank);
   const [editingId, setEditingId] = useState<number | null>(null);
-  
+  const [activePage, setActivePage] = useState(1);
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
   const toast = useToast();
   const queryClient = useQueryClient();
   const { storeId } = useAuth();
 
-  const products = useQuery({ 
-    queryKey: ['products', search], 
-    queryFn: () => catalogApi.products({ search: search || undefined, per_page: 100 }) 
+  const products = useQuery({
+    queryKey: ['products', search, storeId, activePage, perPage],
+    queryFn: () => catalogApi.products({ search: search || undefined, store_id: storeId ?? undefined, page: activePage, per_page: perPage })
   });
-  
-  const deletedProducts = useQuery({ 
-    queryKey: ['products-deleted', search], 
-    queryFn: () => catalogApi.deletedProducts({ search: search || undefined, per_page: 100 }),
+
+  const deletedProducts = useQuery({
+    queryKey: ['products-deleted', search, storeId, deletedPage, perPage],
+    queryFn: () => catalogApi.deletedProducts({ search: search || undefined, store_id: storeId ?? undefined, page: deletedPage, per_page: perPage }),
     enabled: tab === 'deleted'
   });
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories });
+  const categories = useQuery({ queryKey: ['categories', 'list', storeId], queryFn: () => catalogApi.categories({ store_id: storeId ?? undefined, per_page: 100 }) });
 
-  const save = useMutation({ 
-    mutationFn: (payload: Partial<Product>) => editingId ? catalogApi.updateProduct(editingId, payload) : catalogApi.createProduct(payload), 
-    onSuccess: () => { 
-      toast.success(editingId ? 'Produk diperbarui' : 'Produk dibuat'); 
-      setEditing(blank); 
-      setEditingId(null); 
-      queryClient.invalidateQueries({ queryKey: ['products'] }); 
-    }, 
-    onError: (error) => toast.error(getApiError(error)) 
+  useEffect(() => {
+    setActivePage(1);
+    setDeletedPage(1);
+  }, [storeId]);
+
+  const save = useMutation({
+    mutationFn: (payload: Partial<Product>) => editingId ? catalogApi.updateProduct(editingId, payload) : catalogApi.createProduct(payload),
+    onSuccess: () => {
+      toast.success(editingId ? 'Produk diperbarui' : 'Produk dibuat');
+      setEditing(blank);
+      setEditingId(null);
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (error) => toast.error(getApiError(error))
   });
 
-  const remove = useMutation({ 
-    mutationFn: catalogApi.deleteProduct, 
-    onSuccess: () => { 
-      toast.success('Produk dihapus (dipindahkan ke Sampah)'); 
-      queryClient.invalidateQueries({ queryKey: ['products'] }); 
+  const remove = useMutation({
+    mutationFn: catalogApi.deleteProduct,
+    onSuccess: () => {
+      toast.success('Produk dihapus (dipindahkan ke Sampah)');
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['products-deleted'] });
-    }, 
-    onError: (error) => toast.error(getApiError(error)) 
+    },
+    onError: (error) => toast.error(getApiError(error))
   });
 
   const restore = useMutation({
@@ -75,26 +83,38 @@ export function ProductsPage() {
     onError: (error) => toast.error(getApiError(error))
   });
 
-  const submit = (event: React.FormEvent) => { 
-    event.preventDefault(); 
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
     const targetStoreId = editing.store_id ?? storeId;
     if (!targetStoreId) { toast.error('store_id tidak tersedia dari user login. Backend mewajibkan store_id untuk produk.'); return; }
-    save.mutate({ 
-      ...editing, 
+    save.mutate({
+      ...editing,
       store_id: targetStoreId,
-      category_id: Number(editing.category_id), 
-      minimum_stock: toNumber(editing.minimum_stock), 
-      current_stock: toNumber(editing.current_stock), 
-      cost_price: toNumber(editing.cost_price), 
-      selling_price: toNumber(editing.selling_price), 
-      is_active: Boolean(editing.is_active) 
-    }); 
+      category_id: Number(editing.category_id),
+      minimum_stock: toNumber(editing.minimum_stock),
+      current_stock: toNumber(editing.current_stock),
+      cost_price: toNumber(editing.cost_price),
+      selling_price: toNumber(editing.selling_price),
+      is_active: Boolean(editing.is_active)
+    });
   };
 
   const handleForceDelete = (id: number, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus permanen produk "${name}"?\nTindakan ini tidak dapat dibatalkan.`)) {
       forceDelete.mutate(id);
     }
+  };
+
+  const changeSearch = (value: string) => {
+    setSearch(value);
+    setActivePage(1);
+    setDeletedPage(1);
+  };
+
+  const changePerPage = (value: number) => {
+    setPerPage(value);
+    setActivePage(1);
+    setDeletedPage(1);
   };
 
   return (
@@ -120,14 +140,12 @@ export function ProductsPage() {
           </button>
         </div>
 
-        <Input placeholder="Cari produk atau SKU..." value={search} onChange={(e) => setSearch(e.target.value)} />
-
         {tab === 'active' ? (
           <>
             {products.isLoading && <LoadingState />}
             {products.error && <ErrorState message={getApiError(products.error)} />}
             {!products.isLoading && (products.data?.data.length ?? 0) === 0 && <EmptyState title="Produk kosong" />}
-            
+
             {!products.isLoading && products.data && products.data.data.length > 0 && (
               <div className="overflow-hidden rounded-card border border-line bg-card shadow-card">
                 <div className="overflow-x-auto">
@@ -167,6 +185,7 @@ export function ProductsPage() {
                     </tbody>
                   </table>
                 </div>
+                <PaginationBar pageData={products.data} page={activePage} setPage={setActivePage} isFetching={products.isFetching} />
               </div>
             )}
           </>
@@ -213,6 +232,7 @@ export function ProductsPage() {
                     </tbody>
                   </table>
                 </div>
+                <PaginationBar pageData={deletedProducts.data} page={deletedPage} setPage={setDeletedPage} isFetching={deletedProducts.isFetching} />
               </div>
             )}
           </>
@@ -273,5 +293,37 @@ export function ProductsPage() {
         )}
       </aside>
     </section>
+  );
+}
+
+interface PaginationBarProps {
+  pageData?: {
+    from: number | null;
+    to: number | null;
+    total: number;
+    last_page: number;
+  };
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  isFetching: boolean;
+}
+
+function PaginationBar({ pageData, page, setPage, isFetching }: PaginationBarProps) {
+  const startRow = pageData?.from ?? 0;
+  const endRow = pageData?.to ?? 0;
+  const totalRows = pageData?.total ?? 0;
+  const lastPage = pageData?.last_page ?? 1;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-card px-4 py-3 text-sm">
+      <p className="text-muted">
+        Menampilkan <span className="font-semibold text-ink">{startRow || 0}-{endRow || 0}</span> dari <span className="font-semibold text-ink">{totalRows}</span> produk
+      </p>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" size="sm" disabled={page <= 1 || isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Button>
+        <span className="rounded-md border border-line bg-subtle px-3 py-1 text-xs font-semibold text-ink">Page {page} / {lastPage}</span>
+        <Button variant="secondary" size="sm" disabled={page >= lastPage || isFetching} onClick={() => setPage((current) => Math.min(lastPage, current + 1))}>Next</Button>
+      </div>
+    </div>
   );
 }
